@@ -92,6 +92,44 @@ impl ReplayFilter {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaginationMeta {
+    pub total: i64,
+    pub total_pages: i32,
+    pub current_page: i32,
+    pub per_page: i32,
+}
+
+impl PaginationMeta {
+    pub fn new(total: i64, current_page: i32, per_page: i32) -> Self {
+        let total_pages = if per_page > 0 {
+            ((total as f64) / (per_page as f64)).ceil() as i32
+        } else {
+            0
+        };
+        Self {
+            total,
+            total_pages,
+            current_page,
+            per_page,
+        }
+    }
+
+    pub fn has_prev(&self) -> bool {
+        self.current_page > 1
+    }
+
+    pub fn has_next(&self) -> bool {
+        self.current_page < self.total_pages
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaginatedResult<T> {
+    pub items: Vec<T>,
+    pub pagination: PaginationMeta,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

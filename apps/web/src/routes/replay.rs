@@ -10,16 +10,19 @@ use serde::Deserialize;
 use tower_cookies::Cookies;
 use crate::state::AppState;
 use crate::error::AppError;
+use crate::middleware::csrf;
 use domain::ReplayFilter;
+use domain::PaginationMeta;
 
 const SESSION_COOKIE_NAME: &str = "session";
 
-fn get_current_user(cookies: &Cookies) -> Option<(i64, String)> {
+fn get_current_user(cookies: &Cookies) -> Option<(i64, String, bool)> {
     cookies.get(SESSION_COOKIE_NAME).and_then(|c| {
         let value = c.value();
         let parts: Vec<&str> = value.split(':').collect();
-        if parts.len() == 2 {
-            Some((parts[0].parse().ok()?, parts[1].to_string()))
+        if parts.len() >= 2 {
+            let is_admin = parts.get(2).map(|&s| s == "1").unwrap_or(false);
+            Some((parts[0].parse().ok()?, parts[1].to_string(), is_admin))
         } else {
             None
         }
@@ -30,10 +33,12 @@ fn get_current_user(cookies: &Cookies) -> Option<(i64, String)> {
 #[template(path = "replays.html")]
 struct ReplaysTemplate {
     replays: Vec<domain::ReplayWithAuthor>,
-    page: i32,
+    pagination: PaginationMeta,
     search_query: String,
     logged_in: bool,
     username: String,
+    is_admin: bool,
+    tag: Option<String>,
 }
 
 #[derive(Template)]
@@ -43,6 +48,9 @@ struct ReplayDetailTemplate {
     comments: Vec<domain::CommentWithAuthor>,
     logged_in: bool,
     username: String,
+    is_admin: bool,
+    current_user_id: Option<i64>,
+    csrf_token: String,
 }
 
 #[derive(serde::Deserialize)]
@@ -55,6 +63,7 @@ struct ReplayQuery {
 #[derive(Deserialize)]
 struct CommentForm {
     content: String,
+    csrf_token: String,
 }
 
 enum ReplayResponse {
@@ -76,16 +85,16 @@ async fn replays_page(
     cookies: Cookies,
     Query(query): Query<ReplayQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (logged_in, username) = get_current_user(&cookies)
-        .map(|(_, u)| (true, u))
-        .unwrap_or((false, String::new()));
+    let (logged_in, username, is_admin) = get_current_user(&cookies)
+        .map(|(_, u, a)| (true, u, a))
+        .unwrap_or((false, String::new(), false));
 
     let page = query.page.unwrap_or(1).max(1);
     let per_page = 20;
     let offset = (page - 1) * per_page;
     let search_query = query.q.clone().unwrap_or_default();
 
-    let replays = if let Some(ref q) = query.q {
+    let result = if let Some(ref q) = query.q {
         if !q.trim().is_empty() {
             db::replays::search(&state.db, q, None, per_page, offset).await
                 .map_err(|e| AppError::Internal(e.to_string()))?
@@ -93,7 +102,7 @@ async fn replays_page(
             let filter = ReplayFilter {
                 is_public: Some(true),
                 page: query.page,
-                tag: query.tag,
+                tag: query.tag.clone(),
                 ..Default::default()
             };
             db::replays::list(&state.db, &filter).await
@@ -103,7 +112,7 @@ async fn replays_page(
         let filter = ReplayFilter {
             is_public: Some(true),
             page: query.page,
-            tag: query.tag,
+            tag: query.tag.clone(),
             ..Default::default()
         };
         db::replays::list(&state.db, &filter).await
@@ -111,11 +120,13 @@ async fn replays_page(
     };
 
     let template = ReplaysTemplate {
-        replays,
-        page,
+        replays: result.items,
+        pagination: result.pagination,
         search_query,
         logged_in,
         username,
+        is_admin,
+        tag: query.tag,
     };
     Ok(Html(template.render().unwrap()))
 }
@@ -125,9 +136,9 @@ async fn replay_detail(
     cookies: Cookies,
     Path(id): Path<i64>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (logged_in, username) = get_current_user(&cookies)
-        .map(|(_, u)| (true, u))
-        .unwrap_or((false, String::new()));
+    let (logged_in, username, is_admin, current_user_id) = get_current_user(&cookies)
+        .map(|(uid, u, a)| (true, u, a, Some(uid)))
+        .unwrap_or((false, String::new(), false, None));
 
     let replay = db::replays::find_with_author(&state.db, id).await
         .map_err(|e| AppError::Internal(e.to_string()))?
@@ -136,7 +147,16 @@ async fn replay_detail(
     let comments = db::comments::list_by_replay(&state.db, id).await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    let template = ReplayDetailTemplate { replay, comments, logged_in, username };
+    let csrf_token = csrf::set_csrf_cookie(&cookies);
+    let template = ReplayDetailTemplate { 
+        replay, 
+        comments, 
+        logged_in, 
+        username, 
+        is_admin,
+        current_user_id,
+        csrf_token 
+    };
     Ok(Html(template.render().unwrap()))
 }
 
@@ -152,7 +172,12 @@ async fn create_comment(
         return Ok(ReplayResponse::Redirect(Redirect::to("/login")));
     }
     
-    let (user_id, _) = user_info.unwrap();
+    let (user_id, _, _) = user_info.unwrap();
+
+    // CSRF 验证
+    if !csrf::verify_csrf(&cookies, &form.csrf_token) {
+        return Err(AppError::BadRequest("安全验证失败，请重试".to_string()));
+    }
     
     let content = form.content.trim();
     if content.is_empty() {
@@ -170,9 +195,43 @@ async fn create_comment(
     Ok(ReplayResponse::Redirect(Redirect::to(&format!("/replays/{}#comments", id))))
 }
 
+async fn delete_replay(
+    State(state): State<AppState>,
+    cookies: Cookies,
+    Path(id): Path<i64>,
+) -> Result<Redirect, AppError> {
+    let user_info = get_current_user(&cookies)
+        .ok_or_else(|| AppError::Unauthorized)?;
+    
+    let (user_id, _, is_admin) = user_info;
+
+    let replay = db::replays::find_by_id(&state.db, id).await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or_else(|| AppError::NotFound(format!("复盘不存在: {}", id)))?;
+
+    // 检查权限：作者或管理员可以删除
+    if replay.user_id != user_id && !is_admin {
+        return Err(AppError::Forbidden("您没有权限删除此复盘".to_string()));
+    }
+
+    // 检查评论：如果有评论且不是管理员，则不能删除
+    let comment_count = db::comments::count_by_replay(&state.db, id).await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    
+    if comment_count > 0 && !is_admin {
+        return Err(AppError::BadRequest("该复盘已有评论，无法删除".to_string()));
+    }
+
+    db::replays::delete(&state.db, id).await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    
+    Ok(Redirect::to("/replays"))
+}
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/replays", get(replays_page))
         .route("/replays/{id}", get(replay_detail))
         .route("/replays/{id}/comments", axum::routing::post(create_comment))
+        .route("/replays/{id}/delete", axum::routing::get(delete_replay))
 }

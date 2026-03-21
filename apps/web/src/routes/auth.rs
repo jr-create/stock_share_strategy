@@ -10,6 +10,7 @@ use serde::Deserialize;
 use tower_cookies::{Cookie, Cookies};
 use crate::state::AppState;
 use crate::error::AppError;
+use crate::middleware::csrf;
 
 const SESSION_COOKIE_NAME: &str = "session";
 
@@ -19,6 +20,7 @@ struct LoginTemplate {
     error: String,
     logged_in: bool,
     username: String,
+    csrf_token: String,
 }
 
 #[derive(Template)]
@@ -27,12 +29,14 @@ struct RegisterTemplate {
     error: String,
     logged_in: bool,
     username: String,
+    csrf_token: String,
 }
 
 #[derive(Deserialize)]
 struct LoginForm {
     email: String,
     password: String,
+    csrf_token: String,
 }
 
 #[derive(Deserialize)]
@@ -41,14 +45,16 @@ struct RegisterForm {
     email: String,
     password: String,
     confirm_password: String,
+    csrf_token: String,
 }
 
-fn get_current_user(cookies: &Cookies) -> Option<(i64, String)> {
+fn get_current_user(cookies: &Cookies) -> Option<(i64, String, bool)> {
     cookies.get(SESSION_COOKIE_NAME).and_then(|c| {
         let value = c.value();
         let parts: Vec<&str> = value.split(':').collect();
-        if parts.len() == 2 {
-            Some((parts[0].parse().ok()?, parts[1].to_string()))
+        if parts.len() >= 2 {
+            let is_admin = parts.get(2).map(|&s| s == "1").unwrap_or(false);
+            Some((parts[0].parse().ok()?, parts[1].to_string(), is_admin))
         } else {
             None
         }
@@ -57,19 +63,21 @@ fn get_current_user(cookies: &Cookies) -> Option<(i64, String)> {
 
 async fn login_page(cookies: Cookies) -> impl IntoResponse {
     let (logged_in, username) = get_current_user(&cookies)
-        .map(|(_, u)| (true, u))
+        .map(|(_, u, _)| (true, u))
         .unwrap_or((false, String::new()));
     
-    let template = LoginTemplate { error: String::new(), logged_in, username };
+    let csrf_token = csrf::set_csrf_cookie(&cookies);
+    let template = LoginTemplate { error: String::new(), logged_in, username, csrf_token };
     Html(template.render().unwrap())
 }
 
 async fn register_page(cookies: Cookies) -> impl IntoResponse {
     let (logged_in, username) = get_current_user(&cookies)
-        .map(|(_, u)| (true, u))
+        .map(|(_, u, _)| (true, u))
         .unwrap_or((false, String::new()));
     
-    let template = RegisterTemplate { error: String::new(), logged_in, username };
+    let csrf_token = csrf::set_csrf_cookie(&cookies);
+    let template = RegisterTemplate { error: String::new(), logged_in, username, csrf_token };
     Html(template.render().unwrap())
 }
 
@@ -92,13 +100,27 @@ async fn login_handler(
     cookies: Cookies,
     Form(form): Form<LoginForm>,
 ) -> Result<AuthResponse, AppError> {
+    // CSRF 验证
+    if !csrf::verify_csrf(&cookies, &form.csrf_token) {
+        let csrf_token = csrf::set_csrf_cookie(&cookies);
+        let template = LoginTemplate {
+            error: "安全验证失败，请重试".to_string(),
+            logged_in: false,
+            username: String::new(),
+            csrf_token,
+        };
+        return Ok(AuthResponse::Html(Html(template.render().unwrap())));
+    }
+
     let user = match db::users::find_by_email(&state.db, &form.email).await {
         Ok(Some(user)) => user,
         Ok(None) => {
+            let csrf_token = csrf::set_csrf_cookie(&cookies);
             let template = LoginTemplate {
                 error: "邮箱或密码错误".to_string(),
                 logged_in: false,
                 username: String::new(),
+                csrf_token,
             };
             return Ok(AuthResponse::Html(Html(template.render().unwrap())));
         }
@@ -106,15 +128,17 @@ async fn login_handler(
     };
 
     if !common::password::verify(&form.password, &user.password_hash) {
+        let csrf_token = csrf::set_csrf_cookie(&cookies);
         let template = LoginTemplate {
             error: "邮箱或密码错误".to_string(),
             logged_in: false,
             username: String::new(),
+            csrf_token,
         };
         return Ok(AuthResponse::Html(Html(template.render().unwrap())));
     }
 
-    let session_value = format!("{}:{}", user.id, user.username);
+    let session_value = format!("{}:{}:{}", user.id, user.username, if user.is_admin { "1" } else { "0" });
     let cookie = Cookie::build((SESSION_COOKIE_NAME, session_value))
         .path("/")
         .secure(false)
@@ -131,27 +155,44 @@ async fn register_handler(
     cookies: Cookies,
     Form(form): Form<RegisterForm>,
 ) -> Result<AuthResponse, AppError> {
+    // CSRF 验证
+    if !csrf::verify_csrf(&cookies, &form.csrf_token) {
+        let csrf_token = csrf::set_csrf_cookie(&cookies);
+        let template = RegisterTemplate {
+            error: "安全验证失败，请重试".to_string(),
+            logged_in: false,
+            username: String::new(),
+            csrf_token,
+        };
+        return Ok(AuthResponse::Html(Html(template.render().unwrap())));
+    }
+
     if form.password != form.confirm_password {
+        let csrf_token = csrf::set_csrf_cookie(&cookies);
         let template = RegisterTemplate {
             error: "两次密码不一致".to_string(),
             logged_in: false,
             username: String::new(),
+            csrf_token,
         };
         return Ok(AuthResponse::Html(Html(template.render().unwrap())));
     }
 
     if let Err(e) = domain::User::validate_username(&form.username) {
-        let template = RegisterTemplate { error: e, logged_in: false, username: String::new() };
+        let csrf_token = csrf::set_csrf_cookie(&cookies);
+        let template = RegisterTemplate { error: e, logged_in: false, username: String::new(), csrf_token };
         return Ok(AuthResponse::Html(Html(template.render().unwrap())));
     }
 
     if let Err(e) = domain::User::validate_email(&form.email) {
-        let template = RegisterTemplate { error: e, logged_in: false, username: String::new() };
+        let csrf_token = csrf::set_csrf_cookie(&cookies);
+        let template = RegisterTemplate { error: e, logged_in: false, username: String::new(), csrf_token };
         return Ok(AuthResponse::Html(Html(template.render().unwrap())));
     }
 
     if let Err(e) = domain::User::validate_password(&form.password) {
-        let template = RegisterTemplate { error: e, logged_in: false, username: String::new() };
+        let csrf_token = csrf::set_csrf_cookie(&cookies);
+        let template = RegisterTemplate { error: e, logged_in: false, username: String::new(), csrf_token };
         return Ok(AuthResponse::Html(Html(template.render().unwrap())));
     }
 
@@ -167,7 +208,7 @@ async fn register_handler(
     let user = db::users::create(&state.db, &new_user, &password_hash).await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    let session_value = format!("{}:{}", user.id, user.username);
+    let session_value = format!("{}:{}:{}", user.id, user.username, if user.is_admin { "1" } else { "0" });
     let cookie = Cookie::build((SESSION_COOKIE_NAME, session_value))
         .path("/")
         .secure(false)

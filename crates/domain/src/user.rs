@@ -11,6 +11,7 @@ pub struct User {
     pub bio: String,
     pub avatar_url: String,
     pub created_at: DateTime<Utc>,
+    pub is_admin: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

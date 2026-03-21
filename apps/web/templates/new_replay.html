@@ -64,6 +64,7 @@
         {% endif %}
         
         <form method="POST" action="/dashboard/replays/new">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-medium mb-2" for="title">
                     标题 <span class="text-red-500">*</span>
@@ -206,9 +207,9 @@
             
             <div class="mb-6">
                 <label class="flex items-center">
-                    <input type="checkbox" id="is_public" name="is_public" checked
+                    <input type="checkbox" id="is_public" name="is_public" {% if default_public %}checked{% endif %}
                         class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                    <span class="ml-2 text-gray-700">公开发（其他用户可以看到）span>
+                    <span class="ml-2 text-gray-700">公开发布（其他用户可以看到）</span>
                 </label>
             </div>
             

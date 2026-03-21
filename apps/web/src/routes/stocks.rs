@@ -11,12 +11,13 @@ use crate::error::AppError;
 
 const SESSION_COOKIE_NAME: &str = "session";
 
-fn get_current_user(cookies: &Cookies) -> Option<(i64, String)> {
+fn get_current_user(cookies: &Cookies) -> Option<(i64, String, bool)> {
     cookies.get(SESSION_COOKIE_NAME).and_then(|c| {
         let value = c.value();
         let parts: Vec<&str> = value.split(':').collect();
-        if parts.len() == 2 {
-            Some((parts[0].parse().ok()?, parts[1].to_string()))
+        if parts.len() >= 2 {
+            let is_admin = parts.get(2).map(|&s| s == "1").unwrap_or(false);
+            Some((parts[0].parse().ok()?, parts[1].to_string(), is_admin))
         } else {
             None
         }
@@ -37,7 +38,7 @@ async fn stock_detail(
     Path(code): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     let (logged_in, username) = get_current_user(&cookies)
-        .map(|(_, u)| (true, u))
+        .map(|(_, u, _)| (true, u))
         .unwrap_or((false, String::new()));
 
     let stock = db::stocks::find_by_code(&state.db, &code).await

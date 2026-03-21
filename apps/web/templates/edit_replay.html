@@ -14,6 +14,7 @@
         {% endif %}
         
         <form method="POST" action="/dashboard/replays/{{ replay.id }}/edit">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-medium mb-2" for="title">
                     标题 <span class="text-red-500">*</span>

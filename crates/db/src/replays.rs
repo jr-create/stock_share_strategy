@@ -1,4 +1,4 @@
-use domain::{Replay, NewReplay, UpdateReplay, ReplayFilter, ReplayWithAuthor};
+use domain::{Replay, NewReplay, UpdateReplay, ReplayFilter, ReplayWithAuthor, PaginatedResult, PaginationMeta};
 use sqlx::{PgPool, FromRow};
 use anyhow::Result;
 
@@ -145,10 +145,31 @@ pub async fn find_tags(pool: &PgPool, replay_id: i64) -> Result<Vec<String>> {
     Ok(tags.into_iter().map(|t| t.0).collect())
 }
 
-pub async fn list(pool: &PgPool, filter: &ReplayFilter) -> Result<Vec<ReplayWithAuthor>> {
+pub async fn list(pool: &PgPool, filter: &ReplayFilter) -> Result<PaginatedResult<ReplayWithAuthor>> {
     let offset = filter.offset();
     let limit = filter.per_page();
+    let page = filter.page();
     
+    let total: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*) FROM replays r
+        WHERE ($1::bigint IS NULL OR r.user_id = $1)
+          AND ($2::varchar IS NULL OR EXISTS (
+              SELECT 1 FROM replay_tags WHERE replay_id = r.id AND tag = $2
+          ))
+          AND ($3::date IS NULL OR r.trade_date >= $3)
+          AND ($4::date IS NULL OR r.trade_date <= $4)
+          AND ($5::boolean IS NULL OR r.is_public = $5)
+        "#
+    )
+    .bind(filter.user_id)
+    .bind(&filter.tag)
+    .bind(filter.start_date)
+    .bind(filter.end_date)
+    .bind(filter.is_public)
+    .fetch_one(pool)
+    .await?;
+
     let results = sqlx::query_as::<_, ReplayRow>(
         r#"
         SELECT r.*, u.username as author_username, u.avatar_url as author_avatar,
@@ -191,7 +212,12 @@ pub async fn list(pool: &PgPool, filter: &ReplayFilter) -> Result<Vec<ReplayWith
         });
     }
 
-    Ok(replays)
+    let pagination = PaginationMeta::new(total, page, limit);
+    
+    Ok(PaginatedResult {
+        items: replays,
+        pagination,
+    })
 }
 
 pub async fn update(pool: &PgPool, id: i64, update: &UpdateReplay) -> Result<Option<Replay>> {
@@ -259,14 +285,59 @@ pub async fn delete(pool: &PgPool, id: i64) -> Result<bool> {
     Ok(result.rows_affected() > 0)
 }
 
+pub async fn title_exists(pool: &PgPool, title: &str, exclude_id: Option<i64>) -> Result<bool> {
+    let exists = match exclude_id {
+        Some(id) => {
+            sqlx::query_scalar::<_, i64>(
+                "SELECT COUNT(*) FROM replays WHERE title = $1 AND id != $2 AND is_public = true"
+            )
+            .bind(title)
+            .bind(id)
+            .fetch_one(pool)
+            .await?
+        }
+        None => {
+            sqlx::query_scalar::<_, i64>(
+                "SELECT COUNT(*) FROM replays WHERE title = $1 AND is_public = true"
+            )
+            .bind(title)
+            .fetch_one(pool)
+            .await?
+        }
+    };
+    Ok(exists > 0)
+}
+
 pub async fn search(
     pool: &PgPool,
     query: &str,
     user_id: Option<i64>,
-    limit: i32,
-    offset: i32,
-) -> Result<Vec<ReplayWithAuthor>> {
+    page: i32,
+    per_page: i32,
+) -> Result<PaginatedResult<ReplayWithAuthor>> {
     let search_pattern = format!("%{}%", query);
+    let offset = (page - 1) * per_page;
+    let is_public_filter = if user_id.is_some() { None } else { Some(true) };
+    
+    let total: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*) FROM replays r
+        WHERE ($1::bigint IS NULL OR r.user_id = $1)
+          AND (
+              r.title ILIKE $2
+              OR r.market_view ILIKE $2
+              OR r.sector_focus ILIKE $2
+              OR r.watchlist ILIKE $2
+              OR r.review ILIKE $2
+          )
+          AND ($3::boolean IS NULL OR r.is_public = $3)
+        "#
+    )
+    .bind(user_id)
+    .bind(&search_pattern)
+    .bind(is_public_filter)
+    .fetch_one(pool)
+    .await?;
     
     let results = sqlx::query_as::<_, ReplayRow>(
         r#"
@@ -290,8 +361,8 @@ pub async fn search(
     )
     .bind(user_id)
     .bind(&search_pattern)
-    .bind(if user_id.is_some() { None } else { Some(true) })
-    .bind(limit)
+    .bind(is_public_filter)
+    .bind(per_page)
     .bind(offset)
     .fetch_all(pool)
     .await?;
@@ -310,5 +381,10 @@ pub async fn search(
         });
     }
 
-    Ok(replays)
+    let pagination = PaginationMeta::new(total, page, per_page);
+    
+    Ok(PaginatedResult {
+        items: replays,
+        pagination,
+    })
 }

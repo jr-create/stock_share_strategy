@@ -1,11 +1,13 @@
 mod config;
 mod error;
+mod middleware;
 mod routes;
 mod scheduler;
 mod state;
 
 use std::net::SocketAddr;
 use axum::Router;
+use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 use tower_cookies::CookieManagerLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -32,9 +34,21 @@ async fn main() -> anyhow::Result<()> {
     
     state.start_scheduler().await;
     
+    // 获取限流器引用用于中间件
+    let rate_limiter = state.rate_limiter.clone();
+    
     let app = Router::new()
         .merge(routes::create_routes())
-        .layer(TraceLayer::new_for_http())
+        .layer(axum::middleware::from_fn_with_state(
+            rate_limiter,
+            crate::middleware::rate_limit_layer,
+        ))
+        .layer(ServiceBuilder::new()
+            .layer(axum::middleware::from_fn(
+                crate::middleware::security_headers_layer,
+            ))
+            .layer(TraceLayer::new_for_http())
+        )
         .layer(CookieManagerLayer::new())
         .with_state(state);
 

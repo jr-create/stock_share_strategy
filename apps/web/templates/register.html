@@ -14,6 +14,7 @@
         {% endif %}
 
         <form method="POST" action="/register">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-medium mb-2" for="username">
                     用户名

@@ -7,7 +7,7 @@
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-900">复盘广场</h1>
         {% if logged_in %}
-        <a href="/dashboard/replays/new" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+        <a href="/dashboard/replays/new?public=1" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
             发布复盘
         </a>
         {% endif %}
@@ -22,18 +22,27 @@
                        placeholder="搜索标题、大盘观点、主线板块、关注个股、复盘总结..."
                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
             </div>
+            {% if tag.is_some() %}
+            <input type="hidden" name="tag" value="{{ tag.as_ref().unwrap() }}">
+            {% endif %}
             <button type="submit" 
                     class="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700">
                 搜索
             </button>
             {% if !search_query.is_empty() %}
-            <a href="/replays" 
+            <a href="/replays{% if tag.is_some() %}?tag={{ tag.as_ref().unwrap() }}{% endif %}" 
                class="bg-gray-200 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-300">
                 清除
             </a>
             {% endif %}
         </form>
     </div>
+
+    {% if pagination.total > 0 %}
+    <div class="mb-4 text-sm text-gray-500">
+        共 {{ pagination.total }} 条记录，第 {{ pagination.current_page }} / {{ pagination.total_pages }} 页
+    </div>
+    {% endif %}
 
     {% if replays.is_empty() %}
     <div class="text-center py-12 text-gray-500">
@@ -85,6 +94,49 @@
         </div>
         {% endfor %}
     </div>
+
+    {% if pagination.total_pages > 1 %}
+    <div class="mt-8 flex justify-center items-center space-x-2">
+        {% if pagination.has_prev() %}
+        <a href="/replays?page={{ pagination.current_page - 1 }}{% if !search_query.is_empty() %}&q={{ search_query }}{% endif %}{% if tag.is_some() %}&tag={{ tag.as_ref().unwrap() }}{% endif %}"
+           class="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+            上一页
+        </a>
+        {% else %}
+        <span class="px-4 py-2 bg-gray-100 text-gray-400 border border-gray-200 rounded-md cursor-not-allowed">
+            上一页
+        </span>
+        {% endif %}
+
+        <div class="flex space-x-1">
+            {% for p in 1..=pagination.total_pages %}
+                {% if p == pagination.current_page %}
+                <span class="px-4 py-2 bg-indigo-600 text-white rounded-md">
+                    {{ p }}
+                </span>
+                {% else if p == 1 || p == pagination.total_pages || (p >= pagination.current_page - 2 && p <= pagination.current_page + 2) %}
+                <a href="/replays?page={{ p }}{% if !search_query.is_empty() %}&q={{ search_query }}{% endif %}{% if tag.is_some() %}&tag={{ tag.as_ref().unwrap() }}{% endif %}"
+                   class="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                    {{ p }}
+                </a>
+                {% else if p == pagination.current_page - 3 || p == pagination.current_page + 3 %}
+                <span class="px-2 py-2">...</span>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        {% if pagination.has_next() %}
+        <a href="/replays?page={{ pagination.current_page + 1 }}{% if !search_query.is_empty() %}&q={{ search_query }}{% endif %}{% if tag.is_some() %}&tag={{ tag.as_ref().unwrap() }}{% endif %}"
+           class="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+            下一页
+        </a>
+        {% else %}
+        <span class="px-4 py-2 bg-gray-100 text-gray-400 border border-gray-200 rounded-md cursor-not-allowed">
+            下一页
+        </span>
+        {% endif %}
+    </div>
+    {% endif %}
     {% endif %}
 </div>
 {% endblock %}

@@ -1,12 +1,12 @@
 use axum::{
     extract::{State, Path, Query},
-    routing::{get, post, put, delete},
+    routing::{get, post},
     Router,
     Json,
 };
 use serde::{Deserialize, Serialize};
 use crate::state::AppState;
-use crate::error::{AppError, AppResult};
+use crate::error::AppResult;
 use domain::{NewReplay, UpdateReplay, ReplayFilter};
 
 #[derive(Serialize)]
@@ -51,9 +51,10 @@ async fn list_replays(
     };
 
     let replays = db::replays::list(&state.db, &filter).await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+        .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
 
     let response: Vec<ReplayResponse> = replays
+        .items
         .into_iter()
         .map(|r| ReplayResponse {
             id: r.replay.id,
@@ -73,8 +74,8 @@ async fn get_replay(
     Path(id): Path<i64>,
 ) -> AppResult<Json<domain::ReplayWithAuthor>> {
     let replay = db::replays::find_with_author(&state.db, id).await
-        .map_err(|e| AppError::Internal(e.to_string()))?
-        .ok_or_else(|| AppError::NotFound(format!("Replay {} not found", id)))?;
+        .map_err(|e| crate::error::AppError::Internal(e.to_string()))?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("Replay {} not found", id)))?;
 
     Ok(Json(replay))
 }
@@ -84,7 +85,7 @@ async fn create_replay(
     Json(req): Json<CreateReplayRequest>,
 ) -> AppResult<Json<domain::Replay>> {
     let trade_date = chrono::NaiveDate::parse_from_str(&req.trade_date, "%Y-%m-%d")
-        .map_err(|e| AppError::BadRequest(format!("Invalid date format: {}", e)))?;
+        .map_err(|e| crate::error::AppError::BadRequest(format!("Invalid date format: {}", e)))?;
     
     let expiry_date = req.expiry_date
         .and_then(|d| chrono::NaiveDate::parse_from_str(&d, "%Y-%m-%d").ok());
@@ -107,7 +108,7 @@ async fn create_replay(
 
     let user_id = 1i64;
     let replay = db::replays::create(&state.db, user_id, &new_replay).await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+        .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
 
     Ok(Json(replay))
 }
@@ -138,8 +139,8 @@ async fn update_replay(
     };
 
     let replay = db::replays::update(&state.db, id, &update).await
-        .map_err(|e| AppError::Internal(e.to_string()))?
-        .ok_or_else(|| AppError::NotFound(format!("Replay {} not found", id)))?;
+        .map_err(|e| crate::error::AppError::Internal(e.to_string()))?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("Replay {} not found", id)))?;
 
     Ok(Json(replay))
 }
@@ -149,12 +150,12 @@ async fn delete_replay(
     Path(id): Path<i64>,
 ) -> AppResult<Json<serde_json::Value>> {
     let deleted = db::replays::delete(&state.db, id).await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+        .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
 
     if deleted {
         Ok(Json(serde_json::json!({ "success": true })))
     } else {
-        Err(AppError::NotFound(format!("Replay {} not found", id)))
+        Err(crate::error::AppError::NotFound(format!("Replay {} not found", id)))
     }
 }
 
@@ -165,7 +166,7 @@ async fn like_replay(
     let user_id = 1i64;
     
     db::likes::create(&state.db, user_id, id).await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+        .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
 
     Ok(Json(serde_json::json!({ "success": true })))
 }
@@ -179,9 +180,10 @@ async fn search_replays(
     let offset = (page - 1) * per_page;
 
     let replays = db::replays::search(&state.db, &query.q, None, per_page, offset).await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+        .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
 
     let response: Vec<ReplayResponse> = replays
+        .items
         .into_iter()
         .map(|r| ReplayResponse {
             id: r.replay.id,
@@ -200,6 +202,6 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/replays", get(list_replays).post(create_replay))
         .route("/replays/search", get(search_replays))
-        .route("/replays/{id}", get(get_replay).put(update_replay).delete(delete_replay))
+        .route("/replays/{id}", get(get_replay).post(update_replay).delete(delete_replay))
         .route("/replays/{id}/like", post(like_replay))
 }

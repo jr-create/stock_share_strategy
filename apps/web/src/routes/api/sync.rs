@@ -4,7 +4,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use crate::state::AppState;
-use crate::error::{AppError, AppResult};
+use crate::error::AppResult;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SyncResponse {

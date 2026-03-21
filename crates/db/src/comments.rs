@@ -79,3 +79,14 @@ pub async fn delete(pool: &PgPool, id: i64, user_id: i64) -> Result<bool> {
 
     Ok(result.rows_affected() > 0)
 }
+
+pub async fn count_by_replay(pool: &PgPool, replay_id: i64) -> Result<i64> {
+    let count: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM comments WHERE replay_id = $1"
+    )
+    .bind(replay_id)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(count.0)
+}
