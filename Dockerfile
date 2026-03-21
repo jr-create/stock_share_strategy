@@ -1,5 +1,5 @@
 # ================================
-# Stage 1: Build dependencies
+# Stage 1: Build dependencies only
 # ================================
 FROM rust:1.75-slim AS planner
 
@@ -10,26 +10,35 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# 只复制 Cargo 配置文件
 COPY Cargo.toml Cargo.lock ./
-COPY crates ./crates
-COPY apps ./apps
 
-RUN mkdir -p apps/web/src \
+# 创建空的源文件结构（用于缓存依赖）
+RUN mkdir -p crates/domain/src \
+    && mkdir -p crates/db/src \
+    && mkdir -p crates/cache/src \
+    && mkdir -p crates/common/src \
+    && mkdir -p crates/analysis/src \
+    && mkdir -p apps/web/src \
+    && mkdir -p tests/src \
+    && mkdir -p benches/benches \
+    && touch crates/domain/src/lib.rs \
+    && touch crates/db/src/lib.rs \
+    && touch crates/cache/src/lib.rs \
+    && touch crates/common/src/lib.rs \
+    && touch crates/analysis/src/lib.rs \
     && echo "fn main() {}" > apps/web/src/main.rs \
-    && mkdir -p crates/domain/src && echo "" > crates/domain/src/lib.rs \
-    && mkdir -p crates/db/src && echo "" > crates/db/src/lib.rs \
-    && mkdir -p crates/cache/src && echo "" > crates/cache/src/lib.rs \
-    && mkdir -p crates/common/src && echo "" > crates/common/src/lib.rs \
-    && mkdir -p crates/analysis/src && echo "" > crates/analysis/src/lib.rs
+    && touch tests/src/lib.rs \
+    && touch benches/benches/cache_operations.rs \
+    && touch benches/benches/domain_operations.rs
 
+# 构建依赖（缓存层）
 RUN cargo build --release --package stock-replay-web
 
 # ================================
 # Stage 2: Build application
 # ================================
 FROM rust:1.75-slim AS builder
-
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -38,12 +47,19 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# 复制 Cargo 配置
 COPY Cargo.toml Cargo.lock ./
+
+# 复制真正的源代码
 COPY crates ./crates
 COPY apps ./apps
+COPY benches ./benches
+COPY tests ./tests
 
+# 从 planner 复制已编译的依赖
 COPY --from=planner /app/target /app/target
 
+# 构建应用（只编译变更的代码）
 RUN cargo build --release --package stock-replay-web
 
 # ================================
@@ -56,6 +72,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     libssl3 \
+    curl \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
