@@ -16,6 +16,8 @@ struct ReplayRow {
     execution: String,
     review: String,
     is_public: bool,
+    expiry_date: Option<chrono::NaiveDate>,
+    is_prediction: bool,
     created_at: chrono::DateTime<chrono::Utc>,
     updated_at: chrono::DateTime<chrono::Utc>,
     author_username: String,
@@ -39,6 +41,8 @@ impl From<ReplayRow> for (Replay, String, String, i64, i64) {
             execution: row.execution,
             review: row.review,
             is_public: row.is_public,
+            expiry_date: row.expiry_date,
+            is_prediction: row.is_prediction,
             created_at: row.created_at,
             updated_at: row.updated_at,
         };
@@ -52,8 +56,8 @@ pub async fn create(pool: &PgPool, user_id: i64, new_replay: &NewReplay) -> Resu
     let replay = sqlx::query_as::<_, Replay>(
         r#"
         INSERT INTO replays (user_id, title, trade_date, market_sentiment, market_view, 
-            sector_focus, watchlist, plan, execution, review, is_public)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            sector_focus, watchlist, plan, execution, review, is_public, expiry_date, is_prediction)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING *
         "#
     )
@@ -68,6 +72,8 @@ pub async fn create(pool: &PgPool, user_id: i64, new_replay: &NewReplay) -> Resu
     .bind(&new_replay.execution)
     .bind(&new_replay.review)
     .bind(new_replay.is_public)
+    .bind(new_replay.expiry_date)
+    .bind(new_replay.is_prediction)
     .fetch_one(&mut *tx)
     .await?;
 
@@ -201,8 +207,10 @@ pub async fn update(pool: &PgPool, id: i64, update: &UpdateReplay) -> Result<Opt
             plan = COALESCE($7, plan),
             execution = COALESCE($8, execution),
             review = COALESCE($9, review),
-            is_public = COALESCE($10, is_public)
-        WHERE id = $11
+            is_public = COALESCE($10, is_public),
+            expiry_date = COALESCE($11, expiry_date),
+            is_prediction = COALESCE($12, is_prediction)
+        WHERE id = $13
         RETURNING *
         "#
     )
@@ -216,6 +224,8 @@ pub async fn update(pool: &PgPool, id: i64, update: &UpdateReplay) -> Result<Opt
     .bind(&update.execution)
     .bind(&update.review)
     .bind(update.is_public)
+    .bind(update.expiry_date)
+    .bind(update.is_prediction)
     .bind(id)
     .fetch_optional(pool)
     .await?;
@@ -247,4 +257,58 @@ pub async fn delete(pool: &PgPool, id: i64) -> Result<bool> {
         .await?;
 
     Ok(result.rows_affected() > 0)
+}
+
+pub async fn search(
+    pool: &PgPool,
+    query: &str,
+    user_id: Option<i64>,
+    limit: i32,
+    offset: i32,
+) -> Result<Vec<ReplayWithAuthor>> {
+    let search_pattern = format!("%{}%", query);
+    
+    let results = sqlx::query_as::<_, ReplayRow>(
+        r#"
+        SELECT r.*, u.username as author_username, u.avatar_url as author_avatar,
+            (SELECT COUNT(*) FROM likes WHERE replay_id = r.id) as like_count,
+            (SELECT COUNT(*) FROM comments WHERE replay_id = r.id) as comment_count
+        FROM replays r
+        JOIN users u ON r.user_id = u.id
+        WHERE ($1::bigint IS NULL OR r.user_id = $1)
+          AND (
+              r.title ILIKE $2
+              OR r.market_view ILIKE $2
+              OR r.sector_focus ILIKE $2
+              OR r.watchlist ILIKE $2
+              OR r.review ILIKE $2
+          )
+          AND ($3::boolean IS NULL OR r.is_public = $3)
+        ORDER BY r.created_at DESC
+        LIMIT $4 OFFSET $5
+        "#
+    )
+    .bind(user_id)
+    .bind(&search_pattern)
+    .bind(if user_id.is_some() { None } else { Some(true) })
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(pool)
+    .await?;
+
+    let mut replays = Vec::new();
+    for row in results {
+        let (replay, author_username, author_avatar, like_count, comment_count) = row.into();
+        let tags = find_tags(pool, replay.id).await?;
+        replays.push(ReplayWithAuthor {
+            replay,
+            author_username,
+            author_avatar,
+            like_count,
+            comment_count,
+            tags,
+        });
+    }
+
+    Ok(replays)
 }

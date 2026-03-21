@@ -13,9 +13,35 @@
         {% endif %}
     </div>
 
+    <div class="mb-6">
+        <form method="GET" action="/replays" class="flex gap-4">
+            <div class="flex-1">
+                <input type="text" 
+                       name="q" 
+                       value="{{ search_query }}"
+                       placeholder="搜索标题、大盘观点、主线板块、关注个股、复盘总结..."
+                       class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <button type="submit" 
+                    class="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700">
+                搜索
+            </button>
+            {% if !search_query.is_empty() %}
+            <a href="/replays" 
+               class="bg-gray-200 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-300">
+                清除
+            </a>
+            {% endif %}
+        </form>
+    </div>
+
     {% if replays.is_empty() %}
     <div class="text-center py-12 text-gray-500">
+        {% if !search_query.is_empty() %}
+        未找到匹配"{{ search_query }}"的复盘记录
+        {% else %}
         暂无复盘记录
+        {% endif %}
     </div>
     {% else %}
     <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -33,12 +59,22 @@
                     <a href="/replays/{{ replay.replay.id }}" class="text-gray-900 hover:text-indigo-600">
                         {{ replay.replay.title }}
                     </a>
+                    {% if replay.replay.is_prediction %}
+                    <span class="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">预测</span>
+                    {% endif %}
                 </h3>
                 {% if !replay.tags.is_empty() %}
                 <div class="flex flex-wrap gap-2 mb-3">
                     {% for tag in replay.tags %}
                     <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">{{ tag }}</span>
                     {% endfor %}
+                </div>
+                {% endif %}
+                {% if replay.replay.expiry_date.is_some() %}
+                <div class="mb-2">
+                    <span class="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                        有效期: {{ replay.replay.expiry_date.unwrap() }}
+                    </span>
                 </div>
                 {% endif %}
                 <div class="flex items-center text-sm text-gray-500 space-x-4">

@@ -4,6 +4,7 @@ use axum::{
     Router,
     Form,
     response::{Html, IntoResponse, Redirect, Response},
+    extract::Query,
 };
 use askama::Template;
 use serde::Deserialize;
@@ -39,6 +40,8 @@ struct MyReplaysTemplate {
     replays: Vec<domain::ReplayWithAuthor>,
     logged_in: bool,
     username: String,
+    search_query: Option<String>,
+    search_tag: Option<String>,
 }
 
 #[derive(Template)]
@@ -71,6 +74,12 @@ struct EditReplayTemplate {
 }
 
 #[derive(Deserialize)]
+struct SearchQuery {
+    q: Option<String>,
+    tag: Option<String>,
+}
+
+#[derive(Deserialize)]
 struct NewReplayForm {
     title: String,
     trade_date: String,
@@ -82,6 +91,8 @@ struct NewReplayForm {
     execution: Option<String>,
     review: Option<String>,
     is_public: Option<String>,
+    expiry_date: Option<String>,
+    is_prediction: Option<String>,
     tags: Option<String>,
 }
 
@@ -115,6 +126,7 @@ async fn dashboard(cookies: Cookies) -> impl IntoResponse {
 async fn my_replays(
     State(state): State<AppState>,
     cookies: Cookies,
+    Query(query): Query<SearchQuery>,
 ) -> Result<impl IntoResponse, AppError> {
     let user_info = get_current_user(&cookies);
     
@@ -124,18 +136,35 @@ async fn my_replays(
     
     let (user_id, username) = user_info.unwrap();
     
-    let filter = ReplayFilter {
-        user_id: Some(user_id),
-        ..Default::default()
+    let replays = if let Some(ref q) = query.q {
+        if !q.trim().is_empty() {
+            db::replays::search(&state.db, q, Some(user_id), 100, 0).await
+                .map_err(|e| AppError::Internal(e.to_string()))?
+        } else {
+            let filter = ReplayFilter {
+                user_id: Some(user_id),
+                tag: query.tag.clone(),
+                ..Default::default()
+            };
+            db::replays::list(&state.db, &filter).await
+                .map_err(|e| AppError::Internal(e.to_string()))?
+        }
+    } else {
+        let filter = ReplayFilter {
+            user_id: Some(user_id),
+            tag: query.tag.clone(),
+            ..Default::default()
+        };
+        db::replays::list(&state.db, &filter).await
+            .map_err(|e| AppError::Internal(e.to_string()))?
     };
-    
-    let replays = db::replays::list(&state.db, &filter).await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
     
     let template = MyReplaysTemplate {
         replays,
         logged_in: true,
         username,
+        search_query: query.q,
+        search_tag: query.tag,
     };
     Ok(DashboardResponse::Html(Html(template.render().unwrap())))
 }
@@ -205,6 +234,12 @@ async fn create_replay(
     let trade_date = chrono::NaiveDate::parse_from_str(&form.trade_date, "%Y-%m-%d")
         .map_err(|e| AppError::BadRequest(format!("日期格式错误: {}", e)))?;
 
+    let expiry_date = form.expiry_date
+        .filter(|d| !d.trim().is_empty())
+        .map(|d| chrono::NaiveDate::parse_from_str(&d, "%Y-%m-%d"))
+        .transpose()
+        .map_err(|e| AppError::BadRequest(format!("有效期日期格式错误: {}", e)))?;
+
     let tags: Vec<String> = form.tags
         .map(|t| t.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
         .unwrap_or_default();
@@ -220,6 +255,8 @@ async fn create_replay(
         execution: form.execution.unwrap_or_default(),
         review: form.review.unwrap_or_default(),
         is_public: form.is_public.is_some(),
+        expiry_date,
+        is_prediction: form.is_prediction.is_some(),
         tags,
     };
 
@@ -288,6 +325,12 @@ async fn update_replay(
     let trade_date = chrono::NaiveDate::parse_from_str(&form.trade_date, "%Y-%m-%d")
         .map_err(|e| AppError::BadRequest(format!("日期格式错误: {}", e)))?;
 
+    let expiry_date = form.expiry_date
+        .filter(|d| !d.trim().is_empty())
+        .map(|d| chrono::NaiveDate::parse_from_str(&d, "%Y-%m-%d"))
+        .transpose()
+        .map_err(|e| AppError::BadRequest(format!("有效期日期格式错误: {}", e)))?;
+
     let tags: Vec<String> = form.tags
         .map(|t| t.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
         .unwrap_or_default();
@@ -303,6 +346,8 @@ async fn update_replay(
         execution: form.execution,
         review: form.review,
         is_public: Some(form.is_public.is_some()),
+        expiry_date,
+        is_prediction: Some(form.is_prediction.is_some()),
         tags: Some(tags),
     };
 

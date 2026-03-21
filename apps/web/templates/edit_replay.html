@@ -34,6 +34,26 @@
             </div>
             
             <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="expiry_date">
+                    有效期日期
+                </label>
+                <input type="date" id="expiry_date" name="expiry_date"
+                    value="{% if replay.expiry_date.is_some() %}{{ replay.expiry_date.unwrap() }}{% endif %}"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="可选，设置复盘的有效期">
+                <p class="text-xs text-gray-500 mt-1">可选字段，用于标记复盘的有效期限</p>
+            </div>
+            
+            <div class="mb-4">
+                <label class="flex items-center">
+                    <input type="checkbox" id="is_prediction" name="is_prediction" {% if replay.is_prediction %}checked{% endif %}
+                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                    <span class="ml-2 text-gray-700">标记为预测/预期</span>
+                </label>
+                <p class="text-xs text-gray-500 mt-1 ml-6">勾选后表示此复盘包含预测或预期内容</p>
+            </div>
+            
+            <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-medium mb-2" for="market_sentiment">
                     市场情绪
                 </label>
@@ -49,12 +69,16 @@
             </div>
             
             <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-medium mb-2" for="market_view">
-                    大盘观点
+                <label class="flex items-center mb-2">
+                    <input type="checkbox" id="show_market_view" onclick="toggleField('show_market_view', 'market_view_field')" {% if !replay.market_view.is_empty() %}checked{% endif %}
+                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                    <span class="ml-2 text-gray-700 text-sm font-medium">填写大盘观点</span>
                 </label>
-                <textarea id="market_view" name="market_view" rows="3"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="描述对大盘走势的看法和分析">{{ replay.market_view }}</textarea>
+                <div id="market_view_field" style="display: {% if !replay.market_view.is_empty() %}block{% else %}none{% endif %};">
+                    <textarea id="market_view" name="market_view" rows="3"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="描述对大盘走势的看法和分析">{{ replay.market_view }}</textarea>
+                </div>
             </div>
             
             <div class="mb-4">
@@ -76,30 +100,42 @@
             </div>
             
             <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-medium mb-2" for="plan">
-                    交易计划
+                <label class="flex items-center mb-2">
+                    <input type="checkbox" id="show_plan" onclick="toggleField('show_plan', 'plan_field')" {% if !replay.plan.is_empty() %}checked{% endif %}
+                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                    <span class="ml-2 text-gray-700 text-sm font-medium">填写交易计划</span>
                 </label>
-                <textarea id="plan" name="plan" rows="3"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="今日的交易计划和策略">{{ replay.plan }}</textarea>
+                <div id="plan_field" style="display: {% if !replay.plan.is_empty() %}block{% else %}none{% endif %};">
+                    <textarea id="plan" name="plan" rows="3"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="今日的交易计划和策略">{{ replay.plan }}</textarea>
+                </div>
             </div>
             
             <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-medium mb-2" for="execution">
-                    实际执行
+                <label class="flex items-center mb-2">
+                    <input type="checkbox" id="show_execution" onclick="toggleField('show_execution', 'execution_field')" {% if !replay.execution.is_empty() %}checked{% endif %}
+                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                    <span class="ml-2 text-gray-700 text-sm font-medium">填写实际执行</span>
                 </label>
-                <textarea id="execution" name="execution" rows="3"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="实际执行的交易操作">{{ replay.execution }}</textarea>
+                <div id="execution_field" style="display: {% if !replay.execution.is_empty() %}block{% else %}none{% endif %};">
+                    <textarea id="execution" name="execution" rows="3"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="实际执行的交易操作">{{ replay.execution }}</textarea>
+                </div>
             </div>
             
             <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-medium mb-2" for="review">
-                    复盘总结
+                <label class="flex items-center mb-2">
+                    <input type="checkbox" id="show_review" onclick="toggleField('show_review', 'review_field')" {% if !replay.review.is_empty() %}checked{% endif %}
+                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                    <span class="ml-2 text-gray-700 text-sm font-medium">填写复盘总结</span>
                 </label>
-                <textarea id="review" name="review" rows="3"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="交易后的总结和反思">{{ replay.review }}</textarea>
+                <div id="review_field" style="display: {% if !replay.review.is_empty() %}block{% else %}none{% endif %};">
+                    <textarea id="review" name="review" rows="3"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="交易后的总结和反思">{{ replay.review }}</textarea>
+                </div>
             </div>
             
             <div class="mb-4">
@@ -133,4 +169,13 @@
         </form>
     </div>
 </div>
+
+<script>
+// Toggle field visibility
+function toggleField(checkboxId, fieldId) {
+    const checkbox = document.getElementById(checkboxId);
+    const field = document.getElementById(fieldId);
+    field.style.display = checkbox.checked ? 'block' : 'none';
+}
+</script>
 {% endblock %}

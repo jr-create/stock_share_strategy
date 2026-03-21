@@ -1,5 +1,5 @@
 use axum::{
-    extract::{State, Path},
+    extract::{State, Path, Query},
     routing::{get, post, put, delete},
     Router,
     Json,
@@ -32,6 +32,14 @@ struct CreateReplayRequest {
     review: Option<String>,
     is_public: Option<bool>,
     tags: Option<Vec<String>>,
+    expiry_date: Option<String>,
+    is_prediction: Option<bool>,
+}
+
+#[derive(Deserialize)]
+struct SearchQuery {
+    q: String,
+    page: Option<i32>,
 }
 
 async fn list_replays(
@@ -77,6 +85,9 @@ async fn create_replay(
 ) -> AppResult<Json<domain::Replay>> {
     let trade_date = chrono::NaiveDate::parse_from_str(&req.trade_date, "%Y-%m-%d")
         .map_err(|e| AppError::BadRequest(format!("Invalid date format: {}", e)))?;
+    
+    let expiry_date = req.expiry_date
+        .and_then(|d| chrono::NaiveDate::parse_from_str(&d, "%Y-%m-%d").ok());
 
     let new_replay = NewReplay {
         title: req.title,
@@ -89,6 +100,8 @@ async fn create_replay(
         execution: req.execution.unwrap_or_default(),
         review: req.review.unwrap_or_default(),
         is_public: req.is_public.unwrap_or(true),
+        expiry_date,
+        is_prediction: req.is_prediction.unwrap_or(false),
         tags: req.tags.unwrap_or_default(),
     };
 
@@ -105,6 +118,8 @@ async fn update_replay(
     Json(req): Json<CreateReplayRequest>,
 ) -> AppResult<Json<domain::Replay>> {
     let trade_date = req.trade_date.parse::<chrono::NaiveDate>().ok();
+    let expiry_date = req.expiry_date
+        .and_then(|d| chrono::NaiveDate::parse_from_str(&d, "%Y-%m-%d").ok());
 
     let update = UpdateReplay {
         title: Some(req.title),
@@ -117,6 +132,8 @@ async fn update_replay(
         execution: req.execution,
         review: req.review,
         is_public: req.is_public,
+        expiry_date,
+        is_prediction: req.is_prediction,
         tags: req.tags,
     };
 
@@ -153,9 +170,36 @@ async fn like_replay(
     Ok(Json(serde_json::json!({ "success": true })))
 }
 
+async fn search_replays(
+    State(state): State<AppState>,
+    Query(query): Query<SearchQuery>,
+) -> AppResult<Json<Vec<ReplayResponse>>> {
+    let page = query.page.unwrap_or(1).max(1);
+    let per_page = 20;
+    let offset = (page - 1) * per_page;
+
+    let replays = db::replays::search(&state.db, &query.q, None, per_page, offset).await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let response: Vec<ReplayResponse> = replays
+        .into_iter()
+        .map(|r| ReplayResponse {
+            id: r.replay.id,
+            title: r.replay.title,
+            trade_date: r.replay.trade_date.to_string(),
+            author: r.author_username,
+            like_count: r.like_count,
+            comment_count: r.comment_count,
+        })
+        .collect();
+
+    Ok(Json(response))
+}
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/replays", get(list_replays).post(create_replay))
+        .route("/replays/search", get(search_replays))
         .route("/replays/{id}", get(get_replay).put(update_replay).delete(delete_replay))
         .route("/replays/{id}/like", post(like_replay))
 }

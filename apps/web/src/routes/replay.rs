@@ -31,6 +31,7 @@ fn get_current_user(cookies: &Cookies) -> Option<(i64, String)> {
 struct ReplaysTemplate {
     replays: Vec<domain::ReplayWithAuthor>,
     page: i32,
+    search_query: String,
     logged_in: bool,
     username: String,
 }
@@ -48,6 +49,7 @@ struct ReplayDetailTemplate {
 struct ReplayQuery {
     page: Option<i32>,
     tag: Option<String>,
+    q: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -78,19 +80,40 @@ async fn replays_page(
         .map(|(_, u)| (true, u))
         .unwrap_or((false, String::new()));
 
-    let filter = ReplayFilter {
-        is_public: Some(true),
-        page: query.page,
-        tag: query.tag,
-        ..Default::default()
-    };
+    let page = query.page.unwrap_or(1).max(1);
+    let per_page = 20;
+    let offset = (page - 1) * per_page;
+    let search_query = query.q.clone().unwrap_or_default();
 
-    let replays = db::replays::list(&state.db, &filter).await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let replays = if let Some(ref q) = query.q {
+        if !q.trim().is_empty() {
+            db::replays::search(&state.db, q, None, per_page, offset).await
+                .map_err(|e| AppError::Internal(e.to_string()))?
+        } else {
+            let filter = ReplayFilter {
+                is_public: Some(true),
+                page: query.page,
+                tag: query.tag,
+                ..Default::default()
+            };
+            db::replays::list(&state.db, &filter).await
+                .map_err(|e| AppError::Internal(e.to_string()))?
+        }
+    } else {
+        let filter = ReplayFilter {
+            is_public: Some(true),
+            page: query.page,
+            tag: query.tag,
+            ..Default::default()
+        };
+        db::replays::list(&state.db, &filter).await
+            .map_err(|e| AppError::Internal(e.to_string()))?
+    };
 
     let template = ReplaysTemplate {
         replays,
-        page: filter.page(),
+        page,
+        search_query,
         logged_in,
         username,
     };

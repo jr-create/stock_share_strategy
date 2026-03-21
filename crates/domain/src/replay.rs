@@ -16,6 +16,8 @@ pub struct Replay {
     pub execution: String,
     pub review: String,
     pub is_public: bool,
+    pub expiry_date: Option<NaiveDate>,
+    pub is_prediction: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -32,6 +34,8 @@ pub struct NewReplay {
     pub execution: String,
     pub review: String,
     pub is_public: bool,
+    pub expiry_date: Option<NaiveDate>,
+    pub is_prediction: bool,
     pub tags: Vec<String>,
 }
 
@@ -47,6 +51,8 @@ pub struct UpdateReplay {
     pub execution: Option<String>,
     pub review: Option<String>,
     pub is_public: Option<bool>,
+    pub expiry_date: Option<NaiveDate>,
+    pub is_prediction: Option<bool>,
     pub tags: Option<Vec<String>>,
 }
 
