@@ -1,22 +1,20 @@
-FROM rust:1.88
+FROM rust:latest AS builder
 LABEL "language"="rust"
 
-WORKDIR /app
-
-RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
 
 COPY . .
 
-RUN rm -f Cargo.lock && cargo build --release -p stock-replay-web
+RUN cargo build --release -p stock-replay-web
 
 FROM debian:bookworm-slim
 
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y ca-certificates libssl3 && rm -rf /var/lib/apt/lists/*
-
-COPY --from=0 /app/target/release/stock-replay-web ./app
+COPY --from=builder /src/target/release/stock-replay-web /app/stock-replay-web
 
 EXPOSE 8080
 
-CMD ["./app"]
+CMD ["/app/stock-replay-web"]
