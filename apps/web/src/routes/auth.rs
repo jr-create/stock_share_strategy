@@ -92,9 +92,18 @@ async fn login_handler(
     cookies: Cookies,
     Form(form): Form<LoginForm>,
 ) -> Result<AuthResponse, AppError> {
-    let user = db::users::find_by_email(&state.db, &form.email).await
-        .map_err(|e| AppError::Internal(e.to_string()))?
-        .ok_or_else(|| AppError::BadRequest("邮箱或密码错误".to_string()))?;
+    let user = match db::users::find_by_email(&state.db, &form.email).await {
+        Ok(Some(user)) => user,
+        Ok(None) => {
+            let template = LoginTemplate {
+                error: "邮箱或密码错误".to_string(),
+                logged_in: false,
+                username: String::new(),
+            };
+            return Ok(AuthResponse::Html(Html(template.render().unwrap())));
+        }
+        Err(e) => return Err(AppError::Internal(e.to_string())),
+    };
 
     if !common::password::verify(&form.password, &user.password_hash) {
         let template = LoginTemplate {

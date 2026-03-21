@@ -229,23 +229,34 @@ class StockDataCollector:
         """
         print("正在获取所有A股实时行情数据...")
         
-        # 获取实时行情数据
         df = ak.stock_info_a_code_name()
         print(f"获取到 {len(df)} 条股票数据")
+        print(f"列名: {df.columns.tolist()}")
         
-        # 数据预处理
+        code_col = None
+        name_col = None
+        for col in df.columns:
+            col_lower = str(col).lower()
+            if '代码' in col or 'code' in col_lower:
+                code_col = col
+            if '名称' in col or 'name' in col_lower:
+                name_col = col
+        
+        if code_col is None or name_col is None:
+            print(f"错误: 无法识别列名。可用列: {df.columns.tolist()}")
+            return 0
+        
+        print(f"使用列: 代码={code_col}, 名称={name_col}")
+        
         stocks_data = []
         for _, row in df.iterrows():
-            code = str(row.get('代码', '')).strip()
-            name = str(row.get('名称', '')).strip()
+            code = str(row.get(code_col, '')).strip()
+            name = str(row.get(name_col, '')).strip()
             
             if not code or not name:
                 continue
             
-            # 判断市场
             market = self._determine_market(code)
-            
-            # 板块信息（如果有的话，否则留空）
             sector = str(row.get('板块', '')).strip() if '板块' in row else ''
             
             stocks_data.append({

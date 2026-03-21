@@ -8,7 +8,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn from_env() -> Result<Self, String> {
+    pub fn from_env() -> anyhow::Result<Self> {
         Ok(Config {
             database_url: env::var("DATABASE_URL")
                 .unwrap_or_else(|_| "postgres://stock_replay:stock_replay_dev@localhost:5432/stock_replay".to_string()),
