@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}{{ stock.name }} ({{ stock.code }}) - 股票详情{% endblock %}
+
+{% block content %}
+<div class="px-4 py-6">
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <div class="flex justify-between items-start">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">{{ stock.name }}</h1>
+                <div class="flex items-center space-x-4 mt-2 text-gray-600">
+                    <span class="text-lg font-mono">{{ stock.code }}</span>
+                    {% if !stock.market.is_empty() %}
+                    <span class="bg-gray-100 px-2 py-1 rounded text-sm">{{ stock.market }}</span>
+                    {% endif %}
+                    {% if !stock.sector.is_empty() %}
+                    <span class="bg-indigo-100 text-indigo-600 px-2 py-1 rounded text-sm">{{ stock.sector }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="text-3xl font-bold text-gray-900" id="stock-price">--</div>
+                <div class="text-sm" id="stock-change">--</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">实时行情</h2>
+            <div class="space-y-3" id="quote-data">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">今开</span>
+                    <span class="font-medium" id="open">--</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">最高</span>
+                    <span class="font-medium text-red-600" id="high">--</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">最低</span>
+                    <span class="font-medium text-green-600" id="low">--</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">昨收</span>
+                    <span class="font-medium" id="prev-close">--</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">成交量</span>
+                    <span class="font-medium" id="volume">--</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">成交额</span>
+                    <span class="font-medium" id="amount">--</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">换手率</span>
+                    <span class="font-medium" id="turnover">--</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">市盈率</span>
+                    <span class="font-medium" id="pe">--</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">资金流向</h2>
+            <div class="space-y-3" id="fund-flow">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">主力净流入</span>
+                    <span class="font-medium" id="main-inflow">--</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">超大单净流入</span>
+                    <span class="font-medium" id="super-large">--</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">大单净流入</span>
+                    <span class="font-medium" id="large">--</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">中单净流入</span>
+                    <span class="font-medium" id="medium">--</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">小单净流入</span>
+                    <span class="font-medium" id="small">--</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6 mt-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">相关复盘</h2>
+        <div id="related-replays">
+            <p class="text-gray-500 text-center py-4">暂无相关复盘记录</p>
+        </div>
+    </div>
+</div>
+
+<script>
+const stockCode = '{{ stock.code }}';
+
+async function loadStockQuote() {
+    try {
+        const response = await fetch(`/api/stocks/${stockCode}/quote`);
+        if (response.ok) {
+            const data = await response.json();
+            updateQuoteDisplay(data);
+        }
+    } catch (e) {
+        console.error('Failed to load stock quote:', e);
+    }
+}
+
+function formatNumber(num) {
+    if (num === null || num === undefined) return '--';
+    if (Math.abs(num) >= 100000000) {
+        return (num / 100000000).toFixed(2) + '亿';
+    }
+    if (Math.abs(num) >= 10000) {
+        return (num / 10000).toFixed(2) + '万';
+    }
+    return num.toFixed(2);
+}
+
+function formatPercent(num) {
+    if (num === null || num === undefined) return '--';
+    return num.toFixed(2) + '%';
+}
+
+function updateQuoteDisplay(data) {
+    if (!data) return;
+    
+    const priceEl = document.getElementById('stock-price');
+    const changeEl = document.getElementById('stock-change');
+    
+    if (data.price !== undefined) {
+        priceEl.textContent = data.price.toFixed(2);
+    }
+    
+    if (data.change !== undefined && data.change_percent !== undefined) {
+        const changeClass = data.change >= 0 ? 'text-red-600' : 'text-green-600';
+        const sign = data.change >= 0 ? '+' : '';
+        changeEl.className = `text-sm ${changeClass}`;
+        changeEl.textContent = `${sign}${data.change.toFixed(2)} (${sign}${formatPercent(data.change_percent)})`;
+    }
+    
+    document.getElementById('open').textContent = data.open?.toFixed(2) || '--';
+    document.getElementById('high').textContent = data.high?.toFixed(2) || '--';
+    document.getElementById('low').textContent = data.low?.toFixed(2) || '--';
+    document.getElementById('prev-close').textContent = data.prev_close?.toFixed(2) || '--';
+    document.getElementById('volume').textContent = formatNumber(data.volume);
+    document.getElementById('amount').textContent = formatNumber(data.amount);
+    document.getElementById('turnover').textContent = formatPercent(data.turnover_rate);
+    document.getElementById('pe').textContent = data.pe?.toFixed(2) || '--';
+}
+
+loadStockQuote();
+</script>
+{% endblock %}

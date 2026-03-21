@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}统计分析 - Stock Replay{% endblock %}
+
+{% block content %}
+<div class="px-4 py-8">
+    <h1 class="text-2xl font-bold text-gray-900 mb-6">统计分析</h1>
+    
+    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-3xl font-bold text-indigo-600">{{ total_replays }}</div>
+            <div class="text-gray-600 mt-1">总复盘数</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-3xl font-bold text-green-600">{{ public_replays }}</div>
+            <div class="text-gray-600 mt-1">公开复盘</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-3xl font-bold text-red-600">{{ total_likes }}</div>
+            <div class="text-gray-600 mt-1">获得点赞</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-3xl font-bold text-blue-600">{{ total_comments }}</div>
+            <div class="text-gray-600 mt-1">收到评论</div>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">复盘数据概览</h2>
+        
+        {% if total_replays > 0 %}
+        <div class="space-y-4">
+            <div class="flex items-center">
+                <span class="w-32 text-gray-600">平均点赞:</span>
+                <span class="font-medium">{{ total_likes / total_replays }} 次/篇</span>
+            </div>
+            <div class="flex items-center">
+                <span class="w-32 text-gray-600">平均评论:</span>
+                <span class="font-medium">{{ total_comments / total_replays }} 条/篇</span>
+            </div>
+            <div class="flex items-center">
+                <span class="w-32 text-gray-600">公开比例:</span>
+                <span class="font-medium">{{ public_replays * 100 / total_replays }}%</span>
+            </div>
+        </div>
+        {% else %}
+        <p class="text-gray-500">暂无数据</p>
+        {% endif %}
+    </div>
+    
+    <div class="mt-6">
+        <a href="/dashboard/my-replays" class="text-indigo-600 hover:underline">查看我的复盘列表</a>
+    </div>
+</div>
+{% endblock %}

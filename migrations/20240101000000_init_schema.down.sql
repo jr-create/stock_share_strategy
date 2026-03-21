@@ -1,0 +1,17 @@
+DROP TRIGGER IF EXISTS update_stocks_updated_at ON stocks;
+DROP TRIGGER IF EXISTS update_replays_updated_at ON replays;
+DROP FUNCTION IF EXISTS update_updated_at_column();
+DROP INDEX IF EXISTS idx_stocks_sector;
+DROP INDEX IF EXISTS idx_stocks_name;
+DROP INDEX IF EXISTS idx_likes_replay_id;
+DROP INDEX IF EXISTS idx_comments_replay_id;
+DROP INDEX IF EXISTS idx_replay_tags_tag;
+DROP INDEX IF EXISTS idx_replays_is_public;
+DROP INDEX IF EXISTS idx_replays_trade_date;
+DROP INDEX IF EXISTS idx_replays_user_id;
+DROP TABLE IF EXISTS stocks;
+DROP TABLE IF EXISTS likes;
+DROP TABLE IF EXISTS comments;
+DROP TABLE IF EXISTS replay_tags;
+DROP TABLE IF EXISTS replays;
+DROP TABLE IF EXISTS users;

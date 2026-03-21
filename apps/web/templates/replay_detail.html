@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}{{ replay.replay.title }} - Stock Replay{% endblock %}
+
+{% block content %}
+<div class="px-4">
+    <article class="bg-white rounded-lg shadow">
+        <div class="p-6">
+            <header class="mb-6">
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ replay.replay.title }}</h1>
+                <div class="flex items-center text-gray-500 text-sm space-x-4">
+                    <span>📅 {{ replay.replay.trade_date }}</span>
+                    <span>👤 {{ replay.author_username }}</span>
+                    <span>👍 {{ replay.like_count }}</span>
+                    <span>💬 {{ replay.comment_count }}</span>
+                </div>
+                {% if !replay.tags.is_empty() %}
+                <div class="flex flex-wrap gap-2 mt-3">
+                    {% for tag in replay.tags %}
+                    <span class="text-xs bg-indigo-100 text-indigo-600 px-2 py-1 rounded">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </header>
+
+            {% if !replay.replay.market_sentiment.is_empty() %}
+            <section class="mb-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-2">市场情绪</h2>
+                <p class="text-gray-700 bg-gray-50 p-3 rounded">{{ replay.replay.market_sentiment }}</p>
+            </section>
+            {% endif %}
+
+            {% if !replay.replay.market_view.is_empty() %}
+            <section class="mb-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-2">大盘观点</h2>
+                <div class="text-gray-700 bg-gray-50 p-3 rounded whitespace-pre-wrap">{{ replay.replay.market_view }}</div>
+            </section>
+            {% endif %}
+
+            {% if !replay.replay.sector_focus.is_empty() %}
+            <section class="mb-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-2">主线板块</h2>
+                <div class="text-gray-700 bg-gray-50 p-3 rounded whitespace-pre-wrap">{{ replay.replay.sector_focus }}</div>
+            </section>
+            {% endif %}
+
+            {% if !replay.replay.watchlist.is_empty() %}
+            <section class="mb-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-2">关注个股</h2>
+                <div class="text-gray-700 bg-gray-50 p-3 rounded whitespace-pre-wrap">{{ replay.replay.watchlist }}</div>
+            </section>
+            {% endif %}
+
+            {% if !replay.replay.plan.is_empty() %}
+            <section class="mb-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-2">交易计划</h2>
+                <div class="text-gray-700 bg-blue-50 p-3 rounded whitespace-pre-wrap">{{ replay.replay.plan }}</div>
+            </section>
+            {% endif %}
+
+            {% if !replay.replay.execution.is_empty() %}
+            <section class="mb-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-2">实际执行</h2>
+                <div class="text-gray-700 bg-green-50 p-3 rounded whitespace-pre-wrap">{{ replay.replay.execution }}</div>
+            </section>
+            {% endif %}
+
+            {% if !replay.replay.review.is_empty() %}
+            <section class="mb-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-2">复盘总结</h2>
+                <div class="text-gray-700 bg-yellow-50 p-3 rounded whitespace-pre-wrap">{{ replay.replay.review }}</div>
+            </section>
+            {% endif %}
+        </div>
+    </article>
+
+    <section id="comments" class="mt-8 bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">评论 ({{ comments.len() }})</h2>
+        
+        {% if logged_in %}
+        <form method="POST" action="/replays/{{ replay.replay.id }}/comments" class="mb-6">
+            <div class="mb-3">
+                <textarea id="content" name="content" rows="3" required
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="写下你的评论..."></textarea>
+            </div>
+            <button type="submit"
+                class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition">
+                发表评论
+            </button>
+        </form>
+        {% else %}
+        <div class="mb-6 bg-gray-50 p-4 rounded text-center text-gray-600">
+            <a href="/login" class="text-indigo-600 hover:underline">登录</a> 后参与评论
+        </div>
+        {% endif %}
+        
+        {% if comments.is_empty() %}
+        <p class="text-gray-500 text-center py-4">暂无评论</p>
+        {% else %}
+        <div class="space-y-4">
+            {% for comment in comments %}
+            <div class="border-b pb-4">
+                <div class="flex items-center mb-2">
+                    <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 font-medium">
+                        {{ comment.author_username.chars().next().unwrap_or('U') }}
+                    </div>
+                    <span class="ml-2 font-medium">{{ comment.author_username }}</span>
+                    <span class="ml-auto text-sm text-gray-400">{{ comment.comment.created_at.format("%Y-%m-%d %H:%M") }}</span>
+                </div>
+                <p class="text-gray-700 ml-10">{{ comment.comment.content }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

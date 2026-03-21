@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}编辑复盘 - Stock Replay{% endblock %}
+
+{% block content %}
+<div class="px-4 py-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow p-6">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">编辑复盘</h2>
+        
+        {% if !error.is_empty() %}
+        <div class="bg-red-50 text-red-600 p-3 rounded mb-4">
+            {{ error }}
+        </div>
+        {% endif %}
+        
+        <form method="POST" action="/dashboard/replays/{{ replay.id }}/edit">
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="title">
+                    标题 <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="title" name="title" required
+                    value="{{ replay.title }}"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="例如：2024年1月15日 深度复盘">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="trade_date">
+                    交易日期 <span class="text-red-500">*</span>
+                </label>
+                <input type="date" id="trade_date" name="trade_date" required
+                    value="{{ replay.trade_date }}"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="market_sentiment">
+                    市场情绪
+                </label>
+                <select id="market_sentiment" name="market_sentiment"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">请选择</option>
+                    <option value="强势上涨" {% if replay.market_sentiment == "强势上涨" %}selected{% endif %}>强势上涨</option>
+                    <option value="震荡上涨" {% if replay.market_sentiment == "震荡上涨" %}selected{% endif %}>震荡上涨</option>
+                    <option value="震荡" {% if replay.market_sentiment == "震荡" %}selected{% endif %}>震荡</option>
+                    <option value="震荡下跌" {% if replay.market_sentiment == "震荡下跌" %}selected{% endif %}>震荡下跌</option>
+                    <option value="弱势下跌" {% if replay.market_sentiment == "弱势下跌" %}selected{% endif %}>弱势下跌</option>
+                </select>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="market_view">
+                    大盘观点
+                </label>
+                <textarea id="market_view" name="market_view" rows="3"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="描述对大盘走势的看法和分析">{{ replay.market_view }}</textarea>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="sector_focus">
+                    主线板块
+                </label>
+                <textarea id="sector_focus" name="sector_focus" rows="2"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="当日表现强势的板块">{{ replay.sector_focus }}</textarea>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="watchlist">
+                    关注个股
+                </label>
+                <textarea id="watchlist" name="watchlist" rows="2"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="关注的股票代码和名称，用逗号分隔">{{ replay.watchlist }}</textarea>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="plan">
+                    交易计划
+                </label>
+                <textarea id="plan" name="plan" rows="3"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="今日的交易计划和策略">{{ replay.plan }}</textarea>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="execution">
+                    实际执行
+                </label>
+                <textarea id="execution" name="execution" rows="3"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="实际执行的交易操作">{{ replay.execution }}</textarea>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="review">
+                    复盘总结
+                </label>
+                <textarea id="review" name="review" rows="3"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="交易后的总结和反思">{{ replay.review }}</textarea>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="tags">
+                    标签
+                </label>
+                <input type="text" id="tags" name="tags"
+                    value="{% for tag in tags %}{{ tag }}{% if !loop.last %}, {% endif %}{% endfor %}"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="用逗号分隔的标签，例如：AI,新能源,半导体">
+            </div>
+            
+            <div class="mb-6">
+                <label class="flex items-center">
+                    <input type="checkbox" id="is_public" name="is_public" {% if replay.is_public %}checked{% endif %}
+                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                    <span class="ml-2 text-gray-700">公开发布（其他用户可以看到）</span>
+                </label>
+            </div>
+            
+            <div class="flex space-x-4">
+                <button type="submit"
+                    class="flex-1 bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 transition">
+                    保存修改
+                </button>
+                <a href="/dashboard/my-replays"
+                    class="flex-1 bg-gray-200 text-gray-700 py-2 rounded-md hover:bg-gray-300 transition text-center">
+                    取消
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

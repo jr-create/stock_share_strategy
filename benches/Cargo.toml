@@ -1,0 +1,19 @@
+[package]
+name = "benches"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+domain = { path = "../crates/domain" }
+cache = { path = "../crates/cache" }
+criterion.workspace = true
+tempfile.workspace = true
+chrono.workspace = true
+
+[[bench]]
+name = "cache_operations"
+harness = false
+
+[[bench]]
+name = "domain_operations"
+harness = false

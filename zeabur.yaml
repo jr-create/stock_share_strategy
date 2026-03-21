@@ -1,0 +1,16 @@
+services:
+  - name: stock-replay-web
+    type: web
+    build:
+      type: dockerfile
+      dockerfile: Dockerfile
+    env:
+      DATABASE_URL: ${POSTGRES_DATABASE_URL}
+      RUST_LOG: info,stock_replay_web=debug
+      SERVER_ADDR: 0.0.0.0:3000
+    ports:
+      - 3000
+
+  - name: postgres
+    type: postgresql
+    version: "15"

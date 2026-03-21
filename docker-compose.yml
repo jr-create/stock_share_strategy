@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgres://stock_replay:stock_replay_dev@postgres:5432/stock_replay
+      - RUST_LOG=info,stock_replay_web=debug
+      - SERVER_ADDR=0.0.0.0:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: always
+    networks:
+      - app-network
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=stock_replay
+      - POSTGRES_PASSWORD=stock_replay_dev
+      - POSTGRES_DB=stock_replay
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stock_replay"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge

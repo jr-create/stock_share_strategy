@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}我的复盘 - Stock Replay{% endblock %}
+
+{% block head %}
+<script>
+function confirmDelete(replayId, title) {
+    if (confirm('确定要删除复盘"' + title + '"吗？此操作不可撤销。')) {
+        window.location.href = '/dashboard/replays/' + replayId + '/delete';
+    }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">我的复盘</h1>
+        <a href="/dashboard/replays/new" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+            发布新复盘
+        </a>
+    </div>
+
+    {% if replays.is_empty() %}
+    <div class="text-center py-12 text-gray-500">
+        暂无复盘记录，<a href="/dashboard/replays/new" class="text-indigo-600 hover:underline">立即发布第一篇复盘</a>
+    </div>
+    {% else %}
+    <div class="space-y-4">
+        {% for replay in replays %}
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-start">
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-gray-900">
+                        <a href="/replays/{{ replay.replay.id }}" class="hover:text-indigo-600">
+                            {{ replay.replay.title }}
+                        </a>
+                    </h3>
+                    <div class="flex items-center text-sm text-gray-500 mt-1 space-x-4">
+                        <span>📅 {{ replay.replay.trade_date }}</span>
+                        <span>👍 {{ replay.like_count }}</span>
+                        <span>💬 {{ replay.comment_count }}</span>
+                        {% if replay.replay.is_public %}
+                        <span class="text-green-600">公开</span>
+                        {% else %}
+                        <span class="text-gray-400">私密</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-sm text-gray-400">
+                        {{ replay.replay.created_at.format("%Y-%m-%d %H:%M") }}
+                    </div>
+                    <div class="flex space-x-2">
+                        <a href="/dashboard/replays/{{ replay.replay.id }}/edit" 
+                           class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                            编辑
+                        </a>
+                        <button onclick="confirmDelete({{ replay.replay.id }}, '{{ replay.replay.title }}')"
+                                class="text-red-600 hover:text-red-800 text-sm font-medium">
+                            删除
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

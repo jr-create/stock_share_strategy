@@ -1,0 +1,32 @@
+[package]
+name = "stock-replay-web"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "stock-replay-web"
+path = "src/main.rs"
+
+[dependencies]
+domain = { path = "../../crates/domain" }
+db = { path = "../../crates/db" }
+cache = { path = "../../crates/cache" }
+common = { path = "../../crates/common" }
+axum.workspace = true
+tokio.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+tower-cookies.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+askama.workspace = true
+sqlx.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+argon2.workspace = true
+rand.workspace = true
+time.workspace = true

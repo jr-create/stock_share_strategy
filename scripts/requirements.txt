@@ -1,0 +1,4 @@
+# AkShare 数据采集脚本依赖
+akshare>=1.12.0
+pandas>=2.0.0
+psycopg2-binary>=2.9.0

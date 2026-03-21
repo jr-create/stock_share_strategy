@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}发布新复盘 - Stock Replay{% endblock %}
+
+{% block head %}
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+.select2-container--default .select2-selection--multiple {
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    min-height: 42px;
+}
+.select2-container--default.select2-container--focus .select2-selection--multiple {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background-color: #6366f1;
+    border: none;
+    color: white;
+    padding: 4px 10px;
+    margin: 4px;
+    border-radius: 4px;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    color: white;
+    margin-right: 5px;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+    color: #e0e7ff;
+}
+.select2-results__option {
+    padding: 8px 12px;
+}
+.select2-results__option--highlighted {
+    background-color: #6366f1;
+}
+.stock-option, .sector-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.stock-code {
+    font-family: monospace;
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+.stock-name {
+    font-weight: 500;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="px-4 py-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow p-6">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">发布新复盘</h2>
+        
+        {% if !error.is_empty() %}
+        <div class="bg-green-50 text-green-600 p-3 rounded mb-4">
+            复盘发布成功！正在跳转...
+        </div>
+        {% endif %}
+        
+        <form method="POST" action="/dashboard/replays/new">
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="title">
+                    标题 <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="title" name="title" required
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="例如：2024年1月15日 深度复盘">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="trade_date">
+                    交易日期 <span class="text-red-500">*</span>
+                </label>
+                <input type="date" id="trade_date" name="trade_date" required
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    var today = new Date().toISOString().split('T')[0];
+                    document.getElementById('trade_date').value = today;
+                });
+            </script>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="market_sentiment">
+                    市场情绪
+                </label>
+                <select id="market_sentiment" name="market_sentiment"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">请选择</option>
+                    <option value="强势上涨">强势上涨</option>
+                    <option value="震荡上涨">震荡上涨</option>
+                    <option value="震荡">震荡</option>
+                    <option value="震荡下跌">震荡下跌</option>
+                    <option value="弱势下跌">弱势下跌</option>
+                </select>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="market_view">
+                    大盘观点
+                </label>
+                <textarea id="market_view" name="market_view" rows="3"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="描述对大盘走势的看法和分析"></textarea>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="sector_focus">
+                    主线板块
+                </label>
+                <select id="sector_focus" name="sector_focus" multiple
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="搜索并选择板块">
+                </select>
+                <p class="text-xs text-gray-500 mt-1">输入关键词搜索板块，可多选</p>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="watchlist">
+                    关注个股
+                </label>
+                <select id="watchlist" name="watchlist" multiple
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="搜索并选择股票">
+                </select>
+                <p class="text-xs text-gray-500 mt-1">输入股票代码或名称搜索，可多选</p>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="plan">
+                    交易计划
+                </label>
+                <textarea id="plan" name="plan" rows="3"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="今日的交易计划和策略"></textarea>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="execution">
+                    实际执行
+                </label>
+                <textarea id="execution" name="execution" rows="3"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="实际执行的交易操作"></textarea>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="review">
+                    复盘总结
+                </label>
+                <textarea id="review" name="review" rows="3"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="交易后的总结和反思"></textarea>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-medium mb-2" for="tags">
+                    标签
+                </label>
+                <input type="text" id="tags" name="tags"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="用逗号分隔的标签，例如：AI,新能源,半导体">
+            </div>
+            
+            <div class="mb-6">
+                <label class="flex items-center">
+                    <input type="checkbox" id="is_public" name="is_public" checked
+                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                    <span class="ml-2 text-gray-700">公开发（其他用户可以看到）span>
+                </label>
+            </div>
+            
+            <button type="submit"
+                class="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 transition">
+                发布复盘
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- jQuery (required for Select2) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    // 初始化股票选择器
+    $('#watchlist').select2({
+        ajax: {
+            url: '/api/stocks/search',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return {
+                    q: params.term,
+                    limit: 20
+                };
+            },
+            processResults: function(data) {
+                return {
+                    results: data.map(function(stock) {
+                        return {
+                            id: stock.code + ' ' + stock.name,
+                            text: stock.code + ' - ' + stock.name,
+                            code: stock.code,
+                            name: stock.name,
+                            market: stock.market,
+                            sector: stock.sector
+                        };
+                    })
+                };
+            },
+            cache: true
+        },
+        placeholder: '输入股票代码或名称搜索',
+        minimumInputLength: 1,
+        templateResult: function(stock) {
+            if (stock.loading) {
+                return stock.text;
+            }
+            return $('<div class="stock-option">' +
+                '<span class="stock-name">' + stock.name + '</span>' +
+                '<span class="stock-code">' + stock.code + ' | ' + (stock.market || '') + '</span>' +
+                '</div>');
+        },
+        templateSelection: function(stock) {
+            return stock.text || stock.code + ' - ' + stock.name;
+        },
+        language: {
+            inputTooShort: function() {
+                return '请输入至少1个字符';
+            },
+            searching: function() {
+                return '搜索中...';
+            },
+            noResults: function() {
+                return '未找到匹配的股票';
+            }
+        }
+    });
+
+    // 初始化板块选择器（支持手动添加）
+    $('#sector_focus').select2({
+        tags: true,
+        createTag: function(params) {
+            var term = params.term.trim();
+            if (term === '') {
+                return null;
+            }
+            return {
+                id: term,
+                text: term + ' (新板块)',
+                name: term,
+                isNew: true
+            };
+        },
+        ajax: {
+            url: '/api/sectors',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return {
+                    q: params.term
+                };
+            },
+            processResults: function(data, params) {
+                var searchTerm = params.term ? params.term.toLowerCase() : '';
+                var filtered = data.filter(function(sector) {
+                    return sector.name.toLowerCase().indexOf(searchTerm) > -1;
+                });
+                return {
+                    results: filtered.map(function(sector) {
+                        return {
+                            id: sector.name,
+                            text: sector.name,
+                            name: sector.name,
+                            change_percent: sector.change_percent,
+                            leader: sector.leader
+                        };
+                    })
+                };
+            },
+            cache: true
+        },
+        placeholder: '输入板块名称搜索或直接添加新板块',
+        minimumInputLength: 0,
+        templateResult: function(sector) {
+            if (sector.loading) {
+                return sector.text;
+            }
+            if (sector.isNew) {
+                return $('<div class="sector-option">' +
+                    '<span class="font-medium text-indigo-600">' + sector.name + '</span>' +
+                    '<span class="text-xs text-gray-500"> (点击添加新板块)</span>' +
+                    '</div>');
+            }
+            var changeClass = sector.change_percent >= 0 ? 'text-green-600' : 'text-red-600';
+            var changeSign = sector.change_percent >= 0 ? '+' : '';
+            return $('<div class="sector-option">' +
+                '<span class="font-medium">' + sector.name + '</span>' +
+                '<span class="' + changeClass + ' text-sm">' + changeSign + sector.change_percent.toFixed(2) + '%</span>' +
+                '</div>');
+        },
+        templateSelection: function(sector) {
+            return sector.text || sector.name;
+        },
+        language: {
+            inputTooShort: function() {
+                return '请输入板块名称';
+            },
+            searching: function() {
+                return '搜索中...';
+            },
+            noResults: function() {
+                return '未找到匹配的板块，可直接输入添加';
+            }
+        }
+    });
+
+    // 表单提交前处理多选数据
+    $('form').on('submit', function(e) {
+        // 将多选的值转换为逗号分隔的字符串
+        var watchlistValues = $('#watchlist').val();
+        if (watchlistValues) {
+            var watchlistInput = $('<input>')
+                .attr('type', 'hidden')
+                .attr('name', 'watchlist_text')
+                .val(watchlistValues.join(', '));
+            $(this).append(watchlistInput);
+        }
+
+        var sectorValues = $('#sector_focus').val();
+        if (sectorValues) {
+            var sectorInput = $('<input>')
+                .attr('type', 'hidden')
+                .attr('name', 'sector_focus_text')
+                .val(sectorValues.join(', '));
+            $(this).append(sectorInput);
+        }
+    });
+});
+</script>
+{% endblock %}
