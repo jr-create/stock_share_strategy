@@ -29,6 +29,8 @@ RUN cargo build --release --package stock-replay-web
 # ================================
 FROM rust:1.75-slim AS builder
 
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
