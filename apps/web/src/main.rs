@@ -25,39 +25,10 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     tracing::info!("Connecting to database...");
-    
-    // Database connection with retry logic
-    let mut retries = 0;
-    let max_retries = 30;
-    let db = loop {
-        match sqlx::postgres::PgPoolOptions::new()
-            .max_connections(10)
-            .connect(&config.database_url)
-            .await
-        {
-            Ok(pool) => {
-                tracing::info!("Successfully connected to database");
-                break pool;
-            }
-            Err(e) if retries < max_retries => {
-                retries += 1;
-                tracing::warn!(
-                    "Failed to connect to database (attempt {}/{}): {}",
-                    retries,
-                    max_retries,
-                    e
-                );
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-            }
-            Err(e) => {
-                return Err(anyhow::anyhow!(
-                    "Failed to connect to database after {} attempts: {}",
-                    max_retries,
-                    e
-                ))
-            }
-        }
-    };
+    let db = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(10)
+        .connect(&config.database_url)
+        .await?;
 
     tracing::info!("Running database migrations...");
     sqlx::migrate!("../../migrations")
