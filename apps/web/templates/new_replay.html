@@ -55,11 +55,45 @@
 {% block content %}
 <div class="px-4 py-8">
     <div class="max-w-4xl mx-auto bg-white rounded-lg shadow p-6">
-        <h2 class="text-2xl font-bold text-gray-900 mb-6">发布新复盘</h2>
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-900">发布新复盘</h2>
+            <div class="relative">
+                <button type="button" onclick="toggleImportMenu()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                    </svg>
+                    导入JSON
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                <div id="importMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden z-10">
+                    <label class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                        <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        从文件导入
+                        <input type="file" id="importJsonFile" accept=".json" class="hidden" onchange="importJsonFile(event)">
+                    </label>
+                    <button type="button" onclick="openTextImportModal()" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                        </svg>
+                        从文本框导入
+                    </button>
+                </div>
+            </div>
+        </div>
         
-        {% if !error.is_empty() %}
+        {% if success %}
         <div class="bg-green-50 text-green-600 p-3 rounded mb-4">
             复盘发布成功！正在跳转...
+        </div>
+        {% endif %}
+        
+        {% if !error.is_empty() %}
+        <div class="bg-red-50 text-red-600 p-3 rounded mb-4">
+            {{ error }}
         </div>
         {% endif %}
         
@@ -221,17 +255,197 @@
     </div>
 </div>
 
+<!-- JSON文本导入模态框 -->
+<div id="textImportModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">从JSON文本导入</h3>
+                <button onclick="closeTextImportModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">JSON内容</label>
+                <textarea id="jsonTextInput" rows="12"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+                    placeholder='粘贴JSON内容，例如：
+{
+  "title": "复盘标题",
+  "trade_date": "2026-03-22",
+  "market_sentiment": "强势上涨",
+  "market_view": "大盘观点...",
+  "sector_focus": "板块1, 板块2",
+  "watchlist": "股票1, 股票2",
+  "plan": "交易计划...",
+  "execution": "实际执行...",
+  "review": "复盘总结...",
+  "is_public": false,
+  "is_prediction": false,
+  "tags": "标签1, 标签2"
+}'></textarea>
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button onclick="closeTextImportModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
+                    取消
+                </button>
+                <button onclick="importFromText()" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                    导入
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- jQuery (required for Select2) -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <!-- Select2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
+// Toggle import menu
+function toggleImportMenu() {
+    const menu = document.getElementById('importMenu');
+    menu.classList.toggle('hidden');
+}
+
+// Close menu when clicking outside
+document.addEventListener('click', function(event) {
+    const menu = document.getElementById('importMenu');
+    const btn = event.target.closest('button');
+    if (menu && !menu.contains(event.target) && (!btn || !btn.onclick)) {
+        menu.classList.add('hidden');
+    }
+});
+
+// Open text import modal
+function openTextImportModal() {
+    document.getElementById('importMenu').classList.add('hidden');
+    document.getElementById('textImportModal').classList.remove('hidden');
+}
+
+// Close text import modal
+function closeTextImportModal() {
+    document.getElementById('textImportModal').classList.add('hidden');
+    document.getElementById('jsonTextInput').value = '';
+}
+
+// Import from text
+function importFromText() {
+    const jsonText = document.getElementById('jsonTextInput').value.trim();
+    if (!jsonText) {
+        alert('请输入JSON内容');
+        return;
+    }
+    
+    try {
+        const data = JSON.parse(jsonText);
+        fillFormFromData(data);
+        closeTextImportModal();
+    } catch (err) {
+        alert('JSON格式错误：' + err.message);
+    }
+}
+
 // Toggle field visibility
 function toggleField(checkboxId, fieldId) {
     const checkbox = document.getElementById(checkboxId);
     const field = document.getElementById(fieldId);
     field.style.display = checkbox.checked ? 'block' : 'none';
+}
+
+// 通用填充表单函数
+function fillFormFromData(data) {
+    // 填充表单字段
+    if (data.title) document.getElementById('title').value = data.title;
+    if (data.trade_date) document.getElementById('trade_date').value = data.trade_date;
+    if (data.expiry_date) document.getElementById('expiry_date').value = data.expiry_date;
+    if (data.is_prediction) document.getElementById('is_prediction').checked = data.is_prediction;
+    if (data.market_sentiment) document.getElementById('market_sentiment').value = data.market_sentiment;
+    
+    // 填充大盘观点
+    if (data.market_view) {
+        document.getElementById('show_market_view').checked = true;
+        document.getElementById('market_view_field').style.display = 'block';
+        document.getElementById('market_view').value = data.market_view;
+    }
+    
+    // 填充交易计划
+    if (data.plan) {
+        document.getElementById('show_plan').checked = true;
+        document.getElementById('plan_field').style.display = 'block';
+        document.getElementById('plan').value = data.plan;
+    }
+    
+    // 填充实际执行
+    if (data.execution) {
+        document.getElementById('show_execution').checked = true;
+        document.getElementById('execution_field').style.display = 'block';
+        document.getElementById('execution').value = data.execution;
+    }
+    
+    // 填充复盘总结
+    if (data.review) {
+        document.getElementById('show_review').checked = true;
+        document.getElementById('review_field').style.display = 'block';
+        document.getElementById('review').value = data.review;
+    }
+    
+    // 填充标签
+    if (data.tags) {
+        document.getElementById('tags').value = data.tags;
+    }
+    
+    // 填充关注个股
+    if (data.watchlist) {
+        var watchlistItems = data.watchlist.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
+        var $watchlist = $('#watchlist');
+        $watchlist.val(null).trigger('change');
+        watchlistItems.forEach(function(item) {
+            var option = new Option(item, item, true, true);
+            $watchlist.append(option);
+        });
+        $watchlist.trigger('change');
+    }
+    
+    // 填充主线板块
+    if (data.sector_focus) {
+        var sectorItems = data.sector_focus.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
+        var $sector = $('#sector_focus');
+        $sector.val(null).trigger('change');
+        sectorItems.forEach(function(item) {
+            var option = new Option(item, item, true, true);
+            $sector.append(option);
+        });
+        $sector.trigger('change');
+    }
+    
+    // 公开状态
+    if (data.is_public !== undefined) {
+        document.getElementById('is_public').checked = data.is_public;
+    }
+}
+
+// 导入JSON文件
+function importJsonFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    document.getElementById('importMenu').classList.add('hidden');
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            fillFormFromData(data);
+        } catch (err) {
+            alert('JSON格式错误：' + err.message);
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
 }
 
 $(document).ready(function() {
@@ -370,7 +584,6 @@ $(document).ready(function() {
 
     // 表单提交前处理多选数据
     $('form').on('submit', function(e) {
-        // 将多选的值转换为逗号分隔的字符串
         var watchlistValues = $('#watchlist').val();
         if (watchlistValues) {
             var watchlistInput = $('<input>')

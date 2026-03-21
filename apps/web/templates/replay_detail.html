@@ -28,6 +28,22 @@
                     {% if current_user_id.is_some() && (current_user_id.unwrap() == replay.replay.user_id || is_admin) %}
                     <div class="flex space-x-2">
                         {% if current_user_id.unwrap() == replay.replay.user_id %}
+                        <div class="relative">
+                            <button onclick="toggleSingleExportMenu()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 text-sm flex items-center">
+                                导出
+                                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div id="singleExportMenu" class="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg py-1 hidden z-10">
+                                <a href="/my/export/{{ replay.replay.id }}/json" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    导出为 JSON
+                                </a>
+                                <a href="/my/export/{{ replay.replay.id }}/csv" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    导出为 CSV
+                                </a>
+                            </div>
+                        </div>
                         <a href="/dashboard/replays/{{ replay.replay.id }}/edit" 
                            class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 text-sm">
                             编辑
@@ -144,5 +160,17 @@ function confirmDelete(replayId, title) {
         window.location.href = '/replays/' + replayId + '/delete';
     }
 }
+
+function toggleSingleExportMenu() {
+    const menu = document.getElementById('singleExportMenu');
+    menu.classList.toggle('hidden');
+}
+
+document.addEventListener('click', function(event) {
+    const menu = document.getElementById('singleExportMenu');
+    if (menu && !event.target.closest('.relative')) {
+        menu.classList.add('hidden');
+    }
+});
 </script>
 {% endblock %}

@@ -65,6 +65,7 @@ struct NewReplayTemplate {
     logged_in: bool,
     username: String,
     error: String,
+    success: bool,
     csrf_token: String,
     default_public: bool,
 }
@@ -236,7 +237,7 @@ async fn new_replay_page(cookies: Cookies, Query(query): Query<NewReplayQuery>) 
     
     let csrf_token = csrf::set_csrf_cookie(&cookies);
     let default_public = query.public.as_deref() == Some("1");
-    let template = NewReplayTemplate { logged_in, username, error: String::new(), csrf_token, default_public };
+    let template = NewReplayTemplate { logged_in, username, error: String::new(), success: false, csrf_token, default_public };
     DashboardResponse::Html(Html(template.render().unwrap()))
 }
 
@@ -260,6 +261,7 @@ async fn create_replay(
             logged_in: true,
             username: username.clone(),
             error: "安全验证失败，请重试".to_string(),
+            success: false,
             csrf_token,
             default_public: form.is_public.is_some(),
         };
@@ -276,6 +278,7 @@ async fn create_replay(
                 logged_in: true,
                 username,
                 error: "该标题已存在，请使用其他标题".to_string(),
+                success: false,
                 csrf_token,
                 default_public: form.is_public.is_some(),
             };

@@ -247,22 +247,29 @@ document.addEventListener('click', function(event) {
                         <div>
                             <p class="font-medium">JSON 格式示例：</p>
                             <pre class="bg-gray-100 p-2 rounded mt-1 overflow-x-auto">[
-  {
-    "title": "2024年1月15日复盘",
-    "trade_date": "2024-01-15",
-    "market_view": "大盘震荡",
-    "sector_focus": "AI、新能源",
-    "is_public": false,
-    "is_prediction": false,
-    "expiry_date": null,
-    "tags": "AI, 新能源"
-  }
+{
+  "title": "复盘记录",
+  "trade_date": "2026-03-21",
+  "market_sentiment": "强势上涨",
+  "market_view": "大盘观点",
+  "sector_focus": "主线板块",
+  "watchlist": "关注个股",
+  "plan": "交易计划",
+  "execution": "实际执行",
+  "review": "复盘总结",
+  "is_public": false,
+  "is_prediction": true,
+  "expiry_date": "2026-03-29",
+  "tags": "标签",
+  "created_at": "2026-03-21 16:17:50",
+  "updated_at": "2026-03-21 17:51:54"
+}
 ]</pre>
                         </div>
                         <div>
                             <p class="font-medium">CSV 格式示例：</p>
-                            <pre class="bg-gray-100 p-2 rounded mt-1 overflow-x-auto">title,trade_date,market_view,sector_focus,is_public,is_prediction,tags
-复盘标题1,2024-01-15,大盘观点,板块,false,false,标签1,标签2</pre>
+                            <pre class="bg-gray-100 p-2 rounded mt-1 overflow-x-auto">title,trade_date,market_sentiment,market_view,sector_focus,watchlist,plan,execution,review,is_public,is_prediction,expiry_date,tags,created_at,updated_at
+复盘记录,2026-03-21,强势上涨,大盘观点,主线板块,关注个股,交易计划,实际执行,复盘总结,false,true,2026-03-29,标签,2026-03-21 16:17:50,2026-03-21 17:51:54</pre>
                         </div>
                         <p class="text-gray-500">必填字段：title, trade_date</p>
                     </div>
