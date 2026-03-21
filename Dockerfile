@@ -19,7 +19,7 @@ RUN cargo build --release --package stock-replay-web
 # ================================
 # Stage 2: Runtime image
 # ================================
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 LABEL "language"="rust"
 

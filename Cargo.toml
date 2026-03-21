@@ -38,3 +38,4 @@ rand = "0.8"
 time = "0.3"
 criterion = { version = "0.5", features = ["html_reports"] }
 tempfile = "3"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
