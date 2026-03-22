@@ -4,36 +4,36 @@
 
 {% block content %}
 <div class="px-4 py-6">
-    <h1 class="text-2xl font-bold text-gray-900 mb-6">股票行情</h1>
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">股票行情</h1>
     
     <div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2">
-            <div class="bg-white rounded-lg shadow p-6 mb-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">热门股票</h2>
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 transition-colors">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">热门股票</h2>
                 <div class="overflow-x-auto">
                     <table class="min-w-full">
                         <thead>
-                            <tr class="border-b">
-                                <th class="text-left py-2 text-gray-600 font-medium">排名</th>
-                                <th class="text-left py-2 text-gray-600 font-medium">代码</th>
-                                <th class="text-left py-2 text-gray-600 font-medium">名称</th>
-                                <th class="text-right py-2 text-gray-600 font-medium">价格</th>
-                                <th class="text-right py-2 text-gray-600 font-medium">涨跌幅</th>
+                            <tr class="border-b dark:border-gray-700">
+                                <th class="text-left py-2 text-gray-600 dark:text-gray-400 font-medium">排名</th>
+                                <th class="text-left py-2 text-gray-600 dark:text-gray-400 font-medium">代码</th>
+                                <th class="text-left py-2 text-gray-600 dark:text-gray-400 font-medium">名称</th>
+                                <th class="text-right py-2 text-gray-600 dark:text-gray-400 font-medium">价格</th>
+                                <th class="text-right py-2 text-gray-600 dark:text-gray-400 font-medium">涨跌幅</th>
                             </tr>
                         </thead>
                         <tbody id="hot-stocks-body">
-                            <tr><td colspan="5" class="text-center py-4 text-gray-500">加载中...</td></tr>
+                            <tr><td colspan="5" class="text-center py-4 text-gray-500 dark:text-gray-400">加载中...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
             
-            <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">股票搜索</h2>
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 transition-colors">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">股票搜索</h2>
                 <div class="flex gap-2 mb-4">
                     <input type="text" id="stock-search" placeholder="输入股票代码或名称" 
-                           class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <button onclick="searchStocks()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
+                           class="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 transition-colors">
+                    <button onclick="searchStocks()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-colors">
                         搜索
                     </button>
                 </div>
@@ -42,27 +42,27 @@
         </div>
         
         <div class="lg:col-span-1">
-            <div class="bg-white rounded-lg shadow p-6 mb-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">板块涨幅</h2>
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 transition-colors">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">板块涨幅</h2>
                 <div id="sectors-body">
-                    <p class="text-gray-500 text-center py-4">加载中...</p>
+                    <p class="text-gray-500 dark:text-gray-400 text-center py-4">加载中...</p>
                 </div>
             </div>
             
-            <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">市场指数</h2>
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 transition-colors">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">市场指数</h2>
                 <div class="space-y-4" id="indices-body">
                     <div class="flex justify-between items-center">
-                        <span class="text-gray-600">上证指数</span>
-                        <span class="font-medium" id="sh-index">--</span>
+                        <span class="text-gray-600 dark:text-gray-400">上证指数</span>
+                        <span class="font-medium text-gray-900 dark:text-gray-100" id="sh-index">--</span>
                     </div>
                     <div class="flex justify-between items-center">
-                        <span class="text-gray-600">深证成指</span>
-                        <span class="font-medium" id="sz-index">--</span>
+                        <span class="text-gray-600 dark:text-gray-400">深证成指</span>
+                        <span class="font-medium text-gray-900 dark:text-gray-100" id="sz-index">--</span>
                     </div>
                     <div class="flex justify-between items-center">
-                        <span class="text-gray-600">创业板指</span>
-                        <span class="font-medium" id="cyb-index">--</span>
+                        <span class="text-gray-600 dark:text-gray-400">创业板指</span>
+                        <span class="font-medium text-gray-900 dark:text-gray-100" id="cyb-index">--</span>
                     </div>
                 </div>
             </div>
@@ -78,12 +78,12 @@ async function loadHotStocks() {
             const stocks = await response.json();
             const tbody = document.getElementById('hot-stocks-body');
             tbody.innerHTML = stocks.map(s => `
-                <tr class="border-b hover:bg-gray-50 cursor-pointer" onclick="window.location.href='/stocks/${s.code}'">
-                    <td class="py-3 text-gray-600">${s.rank}</td>
-                    <td class="py-3 font-mono">${s.code}</td>
-                    <td class="py-3 font-medium">${s.name}</td>
-                    <td class="py-3 text-right">${s.price.toFixed(2)}</td>
-                    <td class="py-3 text-right ${s.change_percent >= 0 ? 'text-red-600' : 'text-green-600'}">
+                <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors" onclick="window.location.href='/stocks/${s.code}'">
+                    <td class="py-3 text-gray-600 dark:text-gray-400">${s.rank}</td>
+                    <td class="py-3 font-mono text-gray-900 dark:text-gray-100">${s.code}</td>
+                    <td class="py-3 font-medium text-gray-900 dark:text-gray-100">${s.name}</td>
+                    <td class="py-3 text-right text-gray-900 dark:text-gray-100">${s.price.toFixed(2)}</td>
+                    <td class="py-3 text-right ${s.change_percent >= 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}">
                         ${s.change_percent >= 0 ? '+' : ''}${s.change_percent.toFixed(2)}%
                     </td>
                 </tr>
@@ -101,12 +101,12 @@ async function loadSectors() {
             const sectors = await response.json();
             const container = document.getElementById('sectors-body');
             container.innerHTML = sectors.map(s => `
-                <div class="flex justify-between items-center py-2 border-b last:border-0">
+                <div class="flex justify-between items-center py-2 border-b dark:border-gray-700 last:border-0">
                     <div>
-                        <span class="font-medium">${s.name}</span>
-                        <span class="text-xs text-gray-500 ml-2">领涨: ${s.leader}</span>
+                        <span class="font-medium text-gray-900 dark:text-gray-100">${s.name}</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">领涨: ${s.leader}</span>
                     </div>
-                    <span class="${s.change_percent >= 0 ? 'text-red-600' : 'text-green-600'}">
+                    <span class="${s.change_percent >= 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}">
                         ${s.change_percent >= 0 ? '+' : ''}${s.change_percent.toFixed(2)}%
                     </span>
                 </div>
@@ -127,23 +127,23 @@ async function searchStocks() {
             const stocks = await response.json();
             const container = document.getElementById('search-results');
             if (stocks.length === 0) {
-                container.innerHTML = '<p class="text-gray-500 text-center py-4">未找到相关股票</p>';
+                container.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">未找到相关股票</p>';
             } else {
                 container.innerHTML = `
                     <table class="min-w-full">
                         <thead>
-                            <tr class="border-b">
-                                <th class="text-left py-2 text-gray-600">代码</th>
-                                <th class="text-left py-2 text-gray-600">名称</th>
-                                <th class="text-left py-2 text-gray-600">板块</th>
+                            <tr class="border-b dark:border-gray-700">
+                                <th class="text-left py-2 text-gray-600 dark:text-gray-400">代码</th>
+                                <th class="text-left py-2 text-gray-600 dark:text-gray-400">名称</th>
+                                <th class="text-left py-2 text-gray-600 dark:text-gray-400">板块</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${stocks.map(s => `
-                                <tr class="border-b hover:bg-gray-50 cursor-pointer" onclick="window.location.href='/stocks/${s.code}'">
-                                    <td class="py-2 font-mono">${s.code}</td>
-                                    <td class="py-2">${s.name}</td>
-                                    <td class="py-2 text-gray-600">${s.sector || '--'}</td>
+                                <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors" onclick="window.location.href='/stocks/${s.code}'">
+                                    <td class="py-2 font-mono text-gray-900 dark:text-gray-100">${s.code}</td>
+                                    <td class="py-2 text-gray-900 dark:text-gray-100">${s.name}</td>
+                                    <td class="py-2 text-gray-600 dark:text-gray-400">${s.sector || '--'}</td>
                                 </tr>
                             `).join('')}
                         </tbody>

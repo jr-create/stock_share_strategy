@@ -2,52 +2,153 @@
 
 {% block title %}复盘广场 - Stock Replay{% endblock %}
 
+{% block head %}
+<style>
+.like-btn { cursor: pointer; transition: all 0.2s; }
+.like-btn:hover { transform: scale(1.1); }
+.like-btn.liked { color: #ef4444; }
+.pin-btn { cursor: pointer; transition: all 0.2s; }
+.pin-btn:hover { transform: scale(1.1); }
+.pinned-badge { color: #f59e0b; }
+</style>
+<script>
+async function toggleLike(replayId, btn) {
+    const response = await fetch('/replays/' + replayId + '/like', { method: 'POST' });
+    if (!response.ok) {
+        if (response.status === 401) {
+            alert('请先登录');
+            window.location.href = '/login';
+        }
+        return;
+    }
+    const data = await response.json();
+    btn.classList.toggle('liked', data.liked);
+    btn.querySelector('.like-count').textContent = data.like_count;
+}
+
+async function togglePin(replayId, btn) {
+    const isPinned = btn.dataset.pinned === 'true';
+    const response = await fetch('/admin/replays/' + replayId + '/pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pinned: !isPinned })
+    });
+    if (!response.ok) {
+        if (response.status === 401) {
+            alert('请先登录');
+            window.location.href = '/login';
+        } else if (response.status === 403) {
+            alert('只有管理员可以置顶复盘');
+        } else {
+            alert('操作失败，请重试');
+        }
+        return;
+    }
+    const data = await response.json();
+    btn.dataset.pinned = data.is_pinned;
+    btn.textContent = data.is_pinned ? '取消置顶' : '置顶';
+    // 刷新页面以显示最新状态
+    window.location.reload();
+}
+
+function updateSort(field) {
+    const url = new URL(window.location);
+    const currentOrder = url.searchParams.get('order') || 'desc';
+    const currentField = url.searchParams.get('sort');
+    const newOrder = (currentField === field && currentOrder === 'desc') ? 'asc' : 'desc';
+    url.searchParams.set('sort', field);
+    url.searchParams.set('order', newOrder);
+    window.location.href = url.toString();
+}
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="px-4">
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">复盘广场</h1>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">复盘广场</h1>
         {% if logged_in %}
-        <a href="/dashboard/replays/new?public=1" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+        <a href="/dashboard/replays/new?public=1" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition">
             发布复盘
         </a>
         {% endif %}
     </div>
 
-    <div class="mb-6">
-        <form method="GET" action="/replays" class="flex gap-4">
-            <div class="flex-1">
-                <input type="text" 
-                       name="q" 
-                       value="{{ search_query }}"
-                       placeholder="搜索标题、大盘观点、主线板块、关注个股、复盘总结..."
-                       class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+    <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-4 transition-colors">
+        <form method="GET" action="/replays" class="space-y-4">
+            <div class="flex gap-4">
+                <div class="flex-1">
+                    <input type="text" 
+                           name="q" 
+                           value="{{ search_query }}"
+                           placeholder="搜索复盘内容..."
+                           class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 transition-colors">
+                </div>
+                <select name="search_field" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 transition-colors">
+                    <option value="all" {% if search_field == "all" %}selected{% endif %}>全部字段</option>
+                    <option value="title" {% if search_field == "title" %}selected{% endif %}>标题</option>
+                    <option value="market_view" {% if search_field == "market_view" %}selected{% endif %}>大盘观点</option>
+                    <option value="sector_focus" {% if search_field == "sector_focus" %}selected{% endif %}>主线板块</option>
+                    <option value="watchlist" {% if search_field == "watchlist" %}selected{% endif %}>关注个股</option>
+                    <option value="plan" {% if search_field == "plan" %}selected{% endif %}>交易计划</option>
+                    <option value="execution" {% if search_field == "execution" %}selected{% endif %}>实际执行</option>
+                    <option value="review" {% if search_field == "review" %}selected{% endif %}>复盘总结</option>
+                </select>
+                <button type="submit" 
+                        class="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition">
+                    搜索
+                </button>
+                {% if !search_query.is_empty() %}
+                <a href="/replays" 
+                   class="bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 px-6 py-2 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 transition">
+                    清除
+                </a>
+                {% endif %}
             </div>
-            {% if tag.is_some() %}
-            <input type="hidden" name="tag" value="{{ tag.as_ref().unwrap() }}">
+            
+            <div class="flex items-center gap-4 text-sm">
+                <span class="text-gray-600 dark:text-gray-300">排序：</span>
+                <button type="button" onclick="updateSort('created_at')" 
+                    class="px-3 py-1 rounded {% if sort_field == "created_at" %}bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300{% else %}bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300{% endif %} hover:bg-indigo-50 dark:hover:bg-indigo-800 transition">
+                    发布时间 {% if sort_field == "created_at" %}{% if sort_order == "desc" %}↓{% else %}↑{% endif %}{% endif %}
+                </button>
+                <button type="button" onclick="updateSort('trade_date')" 
+                    class="px-3 py-1 rounded {% if sort_field == "trade_date" %}bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300{% else %}bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300{% endif %} hover:bg-indigo-50 dark:hover:bg-indigo-800 transition">
+                    交易日期 {% if sort_field == "trade_date" %}{% if sort_order == "desc" %}↓{% else %}↑{% endif %}{% endif %}
+                </button>
+                <button type="button" onclick="updateSort('like_count')" 
+                    class="px-3 py-1 rounded {% if sort_field == "like_count" %}bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300{% else %}bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300{% endif %} hover:bg-indigo-50 dark:hover:bg-indigo-800 transition">
+                    点赞数 {% if sort_field == "like_count" %}{% if sort_order == "desc" %}↓{% else %}↑{% endif %}{% endif %}
+                </button>
+                <button type="button" onclick="updateSort('comment_count')" 
+                    class="px-3 py-1 rounded {% if sort_field == "comment_count" %}bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300{% else %}bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300{% endif %} hover:bg-indigo-50 dark:hover:bg-indigo-800 transition">
+                    评论数 {% if sort_field == "comment_count" %}{% if sort_order == "desc" %}↓{% else %}↑{% endif %}{% endif %}
+                </button>
+                <button type="button" onclick="updateSort('expiry_date')" 
+                    class="px-3 py-1 rounded {% if sort_field == "expiry_date" %}bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300{% else %}bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300{% endif %} hover:bg-indigo-50 dark:hover:bg-indigo-800 transition">
+                    有效期 {% if sort_field == "expiry_date" %}{% if sort_order == "desc" %}↓{% else %}↑{% endif %}{% endif %}
+                </button>
+            </div>
+            {% if sort_field != "created_at" || sort_order != "desc" %}
+            <input type="hidden" name="sort" value="{{ sort_field }}">
+            <input type="hidden" name="order" value="{{ sort_order }}">
             {% endif %}
-            <button type="submit" 
-                    class="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700">
-                搜索
-            </button>
-            {% if !search_query.is_empty() %}
-            <a href="/replays{% if tag.is_some() %}?tag={{ tag.as_ref().unwrap() }}{% endif %}" 
-               class="bg-gray-200 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-300">
-                清除
-            </a>
+            {% if search_field != "all" %}
+            <input type="hidden" name="search_field" value="{{ search_field }}">
             {% endif %}
         </form>
     </div>
 
     {% if pagination.total > 0 %}
-    <div class="mb-4 text-sm text-gray-500">
+    <div class="mb-4 text-sm text-gray-500 dark:text-gray-400">
         共 {{ pagination.total }} 条记录，第 {{ pagination.current_page }} / {{ pagination.total_pages }} 页
     </div>
     {% endif %}
 
     {% if replays.is_empty() %}
-    <div class="text-center py-12 text-gray-500">
+    <div class="text-center py-12 text-gray-500 dark:text-gray-400">
         {% if !search_query.is_empty() %}
-        未找到匹配"{{ search_query }}"的复盘记录
+        未找到匹配的复盘记录
         {% else %}
         暂无复盘记录
         {% endif %}
@@ -55,40 +156,53 @@
     {% else %}
     <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {% for replay in replays %}
-        <div class="bg-white rounded-lg shadow hover:shadow-md transition">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-md transition">
             <div class="p-6">
                 <div class="flex items-center mb-3">
-                    <div class="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-medium">
+                    <div class="w-8 h-8 bg-indigo-100 dark:bg-indigo-900 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-medium">
                         {{ replay.author_username.chars().next().unwrap_or('U') }}
                     </div>
-                    <span class="ml-2 text-gray-600">{{ replay.author_username }}</span>
-                    <span class="ml-auto text-sm text-gray-400">{{ replay.replay.trade_date }}</span>
+                    <span class="ml-2 text-gray-600 dark:text-gray-300">{{ replay.author_username }}</span>
+                    <span class="ml-auto text-sm text-gray-400 dark:text-gray-500">{{ replay.replay.trade_date }}</span>
                 </div>
                 <h3 class="font-semibold text-lg mb-2">
-                    <a href="/replays/{{ replay.replay.id }}" class="text-gray-900 hover:text-indigo-600">
+                    <a href="/replays/{{ replay.replay.id }}" class="text-gray-900 dark:text-gray-100 hover:text-indigo-600 dark:hover:text-indigo-400">
+                        {% if replay.replay.is_pinned %}
+                        <span class="pinned-badge mr-1" title="置顶">&#128204;</span>
+                        {% endif %}
                         {{ replay.replay.title }}
                     </a>
                     {% if replay.replay.is_prediction %}
-                    <span class="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">预测</span>
+                    <span class="ml-2 text-xs bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-2 py-1 rounded">预测</span>
                     {% endif %}
                 </h3>
                 {% if !replay.tags.is_empty() %}
                 <div class="flex flex-wrap gap-2 mb-3">
                     {% for tag in replay.tags %}
-                    <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">{{ tag }}</span>
+                    <span class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded">{{ tag }}</span>
                     {% endfor %}
                 </div>
                 {% endif %}
                 {% if replay.replay.expiry_date.is_some() %}
                 <div class="mb-2">
-                    <span class="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                    <span class="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900 px-2 py-1 rounded">
                         有效期: {{ replay.replay.expiry_date.unwrap() }}
                     </span>
                 </div>
                 {% endif %}
-                <div class="flex items-center text-sm text-gray-500 space-x-4">
-                    <span>👍 {{ replay.like_count }}</span>
-                    <span>💬 {{ replay.comment_count }}</span>
+                <div class="flex items-center text-sm text-gray-500 dark:text-gray-400 space-x-4">
+                    <span class="like-btn {% if user_likes.contains(replay.replay.id) %}liked{% endif %}" 
+                          onclick="toggleLike({{ replay.replay.id }}, this)">
+                        <span class="like-count">{{ replay.like_count }}</span> 赞
+                    </span>
+                    <span>{{ replay.comment_count }} 评论</span>
+                    {% if is_admin %}
+                    <button class="pin-btn text-xs {% if replay.replay.is_pinned %}text-amber-600 dark:text-amber-400{% else %}text-gray-400 dark:text-gray-500{% endif %}"
+                            data-pinned="{{ replay.replay.is_pinned }}"
+                            onclick="togglePin({{ replay.replay.id }}, this)">
+                        {% if replay.replay.is_pinned %}取消置顶{% else %}置顶{% endif %}
+                    </button>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -98,12 +212,12 @@
     {% if pagination.total_pages > 1 %}
     <div class="mt-8 flex justify-center items-center space-x-2">
         {% if pagination.has_prev() %}
-        <a href="/replays?page={{ pagination.current_page - 1 }}{% if !search_query.is_empty() %}&q={{ search_query }}{% endif %}{% if tag.is_some() %}&tag={{ tag.as_ref().unwrap() }}{% endif %}"
-           class="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+        <a href="/replays?page={{ pagination.current_page - 1 }}{% if !search_query.is_empty() %}&q={{ search_query }}{% endif %}{% if search_field != "all" %}&search_field={{ search_field }}{% endif %}{% if sort_field != "created_at" %}&sort={{ sort_field }}{% endif %}{% if sort_order != "desc" %}&order={{ sort_order }}{% endif %}"
+           class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition">
             上一页
         </a>
         {% else %}
-        <span class="px-4 py-2 bg-gray-100 text-gray-400 border border-gray-200 rounded-md cursor-not-allowed">
+        <span class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-600 rounded-md cursor-not-allowed">
             上一页
         </span>
         {% endif %}
@@ -111,27 +225,27 @@
         <div class="flex space-x-1">
             {% for p in 1..=pagination.total_pages %}
                 {% if p == pagination.current_page %}
-                <span class="px-4 py-2 bg-indigo-600 text-white rounded-md">
+                <span class="px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-md">
                     {{ p }}
                 </span>
                 {% else if p == 1 || p == pagination.total_pages || (p >= pagination.current_page - 2 && p <= pagination.current_page + 2) %}
-                <a href="/replays?page={{ p }}{% if !search_query.is_empty() %}&q={{ search_query }}{% endif %}{% if tag.is_some() %}&tag={{ tag.as_ref().unwrap() }}{% endif %}"
-                   class="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                <a href="/replays?page={{ p }}{% if !search_query.is_empty() %}&q={{ search_query }}{% endif %}{% if search_field != "all" %}&search_field={{ search_field }}{% endif %}{% if sort_field != "created_at" %}&sort={{ sort_field }}{% endif %}{% if sort_order != "desc" %}&order={{ sort_order }}{% endif %}"
+                   class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition">
                     {{ p }}
                 </a>
                 {% else if p == pagination.current_page - 3 || p == pagination.current_page + 3 %}
-                <span class="px-2 py-2">...</span>
+                <span class="px-2 py-2 text-gray-500 dark:text-gray-400">...</span>
                 {% endif %}
             {% endfor %}
         </div>
 
         {% if pagination.has_next() %}
-        <a href="/replays?page={{ pagination.current_page + 1 }}{% if !search_query.is_empty() %}&q={{ search_query }}{% endif %}{% if tag.is_some() %}&tag={{ tag.as_ref().unwrap() }}{% endif %}"
-           class="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+        <a href="/replays?page={{ pagination.current_page + 1 }}{% if !search_query.is_empty() %}&q={{ search_query }}{% endif %}{% if search_field != "all" %}&search_field={{ search_field }}{% endif %}{% if sort_field != "created_at" %}&sort={{ sort_field }}{% endif %}{% if sort_order != "desc" %}&order={{ sort_order }}{% endif %}"
+           class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition">
             下一页
         </a>
         {% else %}
-        <span class="px-4 py-2 bg-gray-100 text-gray-400 border border-gray-200 rounded-md cursor-not-allowed">
+        <span class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-600 rounded-md cursor-not-allowed">
             下一页
         </span>
         {% endif %}

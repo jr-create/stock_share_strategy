@@ -3,13 +3,16 @@
 {% block title %}发布新复盘 - Stock Replay{% endblock %}
 
 {% block head %}
-<!-- Select2 CSS -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
 .select2-container--default .select2-selection--multiple {
     border: 1px solid #d1d5db;
     border-radius: 0.375rem;
     min-height: 42px;
+}
+.dark .select2-container--default .select2-selection--multiple {
+    border-color: #4b5563;
+    background-color: #374151;
 }
 .select2-container--default.select2-container--focus .select2-selection--multiple {
     border-color: #6366f1;
@@ -36,6 +39,13 @@
 .select2-results__option--highlighted {
     background-color: #6366f1;
 }
+.dark .select2-dropdown {
+    background-color: #374151;
+    border-color: #4b5563;
+}
+.dark .select2-results__option {
+    color: #e5e7eb;
+}
 .stock-option, .sector-option {
     display: flex;
     justify-content: space-between;
@@ -46,6 +56,9 @@
     color: #6b7280;
     font-size: 0.875rem;
 }
+.dark .stock-code {
+    color: #9ca3af;
+}
 .stock-name {
     font-weight: 500;
 }
@@ -54,11 +67,11 @@
 
 {% block content %}
 <div class="px-4 py-8">
-    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow p-6">
+    <div class="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow p-6 transition-colors">
         <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-gray-900">发布新复盘</h2>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">发布新复盘</h2>
             <div class="relative">
-                <button type="button" onclick="toggleImportMenu()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 flex items-center">
+                <button type="button" onclick="toggleImportMenu()" class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center transition-colors">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
                     </svg>
@@ -67,15 +80,15 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </button>
-                <div id="importMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden z-10">
-                    <label class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                <div id="importMenu" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 rounded-md shadow-lg py-1 hidden z-10">
+                    <label class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer">
                         <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
                         从文件导入
                         <input type="file" id="importJsonFile" accept=".json" class="hidden" onchange="importJsonFile(event)">
                     </label>
-                    <button type="button" onclick="openTextImportModal()" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    <button type="button" onclick="openTextImportModal()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
                         <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                         </svg>
@@ -86,13 +99,13 @@
         </div>
         
         {% if success %}
-        <div class="bg-green-50 text-green-600 p-3 rounded mb-4">
+        <div class="bg-green-50 dark:bg-green-900 text-green-600 dark:text-green-300 p-3 rounded mb-4">
             复盘发布成功！正在跳转...
         </div>
         {% endif %}
         
         {% if !error.is_empty() %}
-        <div class="bg-red-50 text-red-600 p-3 rounded mb-4">
+        <div class="bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-300 p-3 rounded mb-4">
             {{ error }}
         </div>
         {% endif %}
@@ -100,20 +113,20 @@
         <form method="POST" action="/dashboard/replays/new">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-medium mb-2" for="title">
+                <label class="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2" for="title">
                     标题 <span class="text-red-500">*</span>
                 </label>
                 <input type="text" id="title" name="title" required
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 transition-colors"
                     placeholder="例如：2024年1月15日 深度复盘">
             </div>
             
             <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-medium mb-2" for="trade_date">
+                <label class="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2" for="trade_date">
                     交易日期 <span class="text-red-500">*</span>
                 </label>
                 <input type="date" id="trade_date" name="trade_date" required
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 transition-colors">
             </div>
             <script>
                 document.addEventListener('DOMContentLoaded', function() {
@@ -123,30 +136,30 @@
             </script>
             
             <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-medium mb-2" for="expiry_date">
+                <label class="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2" for="expiry_date">
                     有效期日期
                 </label>
                 <input type="date" id="expiry_date" name="expiry_date"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 transition-colors"
                     placeholder="可选，设置复盘的有效期">
-                <p class="text-xs text-gray-500 mt-1">可选字段，用于标记复盘的有效期限</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">可选字段，用于标记复盘的有效期限</p>
             </div>
             
             <div class="mb-4">
                 <label class="flex items-center">
                     <input type="checkbox" id="is_prediction" name="is_prediction"
-                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                    <span class="ml-2 text-gray-700">标记为预测/预期</span>
+                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 rounded">
+                    <span class="ml-2 text-gray-700 dark:text-gray-300">标记为预测/预期</span>
                 </label>
-                <p class="text-xs text-gray-500 mt-1 ml-6">勾选后表示此复盘包含预测或预期内容</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-6">勾选后表示此复盘包含预测或预期内容</p>
             </div>
             
             <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-medium mb-2" for="market_sentiment">
+                <label class="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2" for="market_sentiment">
                     市场情绪
                 </label>
                 <select id="market_sentiment" name="market_sentiment"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 transition-colors">
                     <option value="">请选择</option>
                     <option value="强势上涨">强势上涨</option>
                     <option value="震荡上涨">震荡上涨</option>
@@ -159,47 +172,47 @@
             <div class="mb-4">
                 <label class="flex items-center mb-2">
                     <input type="checkbox" id="show_market_view" onclick="toggleField('show_market_view', 'market_view_field')"
-                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                    <span class="ml-2 text-gray-700 text-sm font-medium">填写大盘观点</span>
+                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 rounded">
+                    <span class="ml-2 text-gray-700 dark:text-gray-300 text-sm font-medium">填写大盘观点</span>
                 </label>
                 <div id="market_view_field" style="display: none;">
                     <textarea id="market_view" name="market_view" rows="3"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 transition-colors"
                         placeholder="描述对大盘走势的看法和分析"></textarea>
                 </div>
             </div>
             
             <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-medium mb-2" for="sector_focus">
+                <label class="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2" for="sector_focus">
                     主线板块
                 </label>
                 <select id="sector_focus" name="sector_focus" multiple
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 transition-colors"
                     placeholder="搜索并选择板块">
                 </select>
-                <p class="text-xs text-gray-500 mt-1">输入关键词搜索板块，可多选</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">输入关键词搜索板块，可多选</p>
             </div>
             
             <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-medium mb-2" for="watchlist">
+                <label class="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2" for="watchlist">
                     关注个股
                 </label>
                 <select id="watchlist" name="watchlist" multiple
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 transition-colors"
                     placeholder="搜索并选择股票">
                 </select>
-                <p class="text-xs text-gray-500 mt-1">输入股票代码或名称搜索，可多选</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">输入股票代码或名称搜索，可多选</p>
             </div>
             
             <div class="mb-4">
                 <label class="flex items-center mb-2">
                     <input type="checkbox" id="show_plan" onclick="toggleField('show_plan', 'plan_field')"
-                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                    <span class="ml-2 text-gray-700 text-sm font-medium">填写交易计划</span>
+                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 rounded">
+                    <span class="ml-2 text-gray-700 dark:text-gray-300 text-sm font-medium">填写交易计划</span>
                 </label>
                 <div id="plan_field" style="display: none;">
                     <textarea id="plan" name="plan" rows="3"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 transition-colors"
                         placeholder="今日的交易计划和策略"></textarea>
                 </div>
             </div>
@@ -207,12 +220,12 @@
             <div class="mb-4">
                 <label class="flex items-center mb-2">
                     <input type="checkbox" id="show_execution" onclick="toggleField('show_execution', 'execution_field')"
-                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                    <span class="ml-2 text-gray-700 text-sm font-medium">填写实际执行</span>
+                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 rounded">
+                    <span class="ml-2 text-gray-700 dark:text-gray-300 text-sm font-medium">填写实际执行</span>
                 </label>
                 <div id="execution_field" style="display: none;">
                     <textarea id="execution" name="execution" rows="3"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 transition-colors"
                         placeholder="实际执行的交易操作"></textarea>
                 </div>
             </div>
@@ -220,57 +233,56 @@
             <div class="mb-4">
                 <label class="flex items-center mb-2">
                     <input type="checkbox" id="show_review" onclick="toggleField('show_review', 'review_field')"
-                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                    <span class="ml-2 text-gray-700 text-sm font-medium">填写复盘总结</span>
+                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 rounded">
+                    <span class="ml-2 text-gray-700 dark:text-gray-300 text-sm font-medium">填写复盘总结</span>
                 </label>
                 <div id="review_field" style="display: none;">
                     <textarea id="review" name="review" rows="3"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 transition-colors"
                         placeholder="交易后的总结和反思"></textarea>
                 </div>
             </div>
             
             <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-medium mb-2" for="tags">
+                <label class="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2" for="tags">
                     标签
                 </label>
                 <input type="text" id="tags" name="tags"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 transition-colors"
                     placeholder="用逗号分隔的标签，例如：AI,新能源,半导体">
             </div>
             
             <div class="mb-6">
                 <label class="flex items-center">
                     <input type="checkbox" id="is_public" name="is_public" {% if default_public %}checked{% endif %}
-                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                    <span class="ml-2 text-gray-700">公开发布（其他用户可以看到）</span>
+                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 rounded">
+                    <span class="ml-2 text-gray-700 dark:text-gray-300">公开发布（其他用户可以看到）</span>
                 </label>
             </div>
             
             <button type="submit"
-                class="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 transition">
+                class="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-colors">
                 发布复盘
             </button>
         </form>
     </div>
 </div>
 
-<!-- JSON文本导入模态框 -->
-<div id="textImportModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+<div id="textImportModal" class="fixed inset-0 bg-gray-600 dark:bg-gray-900 bg-opacity-50 hidden z-50">
     <div class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full p-6 transition-colors">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold text-gray-900">从JSON文本导入</h3>
-                <button onclick="closeTextImportModal()" class="text-gray-400 hover:text-gray-600">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">从JSON文本导入</h3>
+                <button onclick="closeTextImportModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
             <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">JSON内容</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">JSON内容</label>
                 <textarea id="jsonTextInput" rows="12"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 font-mono text-sm transition-colors"
                     placeholder='粘贴JSON内容，例如：
 {
   "title": "复盘标题",
@@ -288,10 +300,10 @@
 }'></textarea>
             </div>
             <div class="flex justify-end space-x-3">
-                <button onclick="closeTextImportModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
+                <button onclick="closeTextImportModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">
                     取消
                 </button>
-                <button onclick="importFromText()" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                <button onclick="importFromText()" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-colors">
                     导入
                 </button>
             </div>
@@ -299,19 +311,15 @@
     </div>
 </div>
 
-<!-- jQuery (required for Select2) -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<!-- Select2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
-// Toggle import menu
 function toggleImportMenu() {
     const menu = document.getElementById('importMenu');
     menu.classList.toggle('hidden');
 }
 
-// Close menu when clicking outside
 document.addEventListener('click', function(event) {
     const menu = document.getElementById('importMenu');
     const btn = event.target.closest('button');
@@ -320,19 +328,16 @@ document.addEventListener('click', function(event) {
     }
 });
 
-// Open text import modal
 function openTextImportModal() {
     document.getElementById('importMenu').classList.add('hidden');
     document.getElementById('textImportModal').classList.remove('hidden');
 }
 
-// Close text import modal
 function closeTextImportModal() {
     document.getElementById('textImportModal').classList.add('hidden');
     document.getElementById('jsonTextInput').value = '';
 }
 
-// Import from text
 function importFromText() {
     const jsonText = document.getElementById('jsonTextInput').value.trim();
     if (!jsonText) {
@@ -349,56 +354,47 @@ function importFromText() {
     }
 }
 
-// Toggle field visibility
 function toggleField(checkboxId, fieldId) {
     const checkbox = document.getElementById(checkboxId);
     const field = document.getElementById(fieldId);
     field.style.display = checkbox.checked ? 'block' : 'none';
 }
 
-// 通用填充表单函数
 function fillFormFromData(data) {
-    // 填充表单字段
     if (data.title) document.getElementById('title').value = data.title;
     if (data.trade_date) document.getElementById('trade_date').value = data.trade_date;
     if (data.expiry_date) document.getElementById('expiry_date').value = data.expiry_date;
     if (data.is_prediction) document.getElementById('is_prediction').checked = data.is_prediction;
     if (data.market_sentiment) document.getElementById('market_sentiment').value = data.market_sentiment;
     
-    // 填充大盘观点
     if (data.market_view) {
         document.getElementById('show_market_view').checked = true;
         document.getElementById('market_view_field').style.display = 'block';
         document.getElementById('market_view').value = data.market_view;
     }
     
-    // 填充交易计划
     if (data.plan) {
         document.getElementById('show_plan').checked = true;
         document.getElementById('plan_field').style.display = 'block';
         document.getElementById('plan').value = data.plan;
     }
     
-    // 填充实际执行
     if (data.execution) {
         document.getElementById('show_execution').checked = true;
         document.getElementById('execution_field').style.display = 'block';
         document.getElementById('execution').value = data.execution;
     }
     
-    // 填充复盘总结
     if (data.review) {
         document.getElementById('show_review').checked = true;
         document.getElementById('review_field').style.display = 'block';
         document.getElementById('review').value = data.review;
     }
     
-    // 填充标签
     if (data.tags) {
         document.getElementById('tags').value = data.tags;
     }
     
-    // 填充关注个股
     if (data.watchlist) {
         var watchlistItems = data.watchlist.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
         var $watchlist = $('#watchlist');
@@ -410,7 +406,6 @@ function fillFormFromData(data) {
         $watchlist.trigger('change');
     }
     
-    // 填充主线板块
     if (data.sector_focus) {
         var sectorItems = data.sector_focus.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
         var $sector = $('#sector_focus');
@@ -422,13 +417,11 @@ function fillFormFromData(data) {
         $sector.trigger('change');
     }
     
-    // 公开状态
     if (data.is_public !== undefined) {
         document.getElementById('is_public').checked = data.is_public;
     }
 }
 
-// 导入JSON文件
 function importJsonFile(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -449,7 +442,6 @@ function importJsonFile(event) {
 }
 
 $(document).ready(function() {
-    // 初始化股票选择器
     $('#watchlist').select2({
         ajax: {
             url: '/api/stocks/search',
@@ -504,7 +496,6 @@ $(document).ready(function() {
         }
     });
 
-    // 初始化板块选择器（支持手动添加）
     $('#sector_focus').select2({
         tags: true,
         createTag: function(params) {
@@ -555,11 +546,11 @@ $(document).ready(function() {
             }
             if (sector.isNew) {
                 return $('<div class="sector-option">' +
-                    '<span class="font-medium text-indigo-600">' + sector.name + '</span>' +
-                    '<span class="text-xs text-gray-500"> (点击添加新板块)</span>' +
+                    '<span class="font-medium text-indigo-600 dark:text-indigo-400">' + sector.name + '</span>' +
+                    '<span class="text-xs text-gray-500 dark:text-gray-400"> (点击添加新板块)</span>' +
                     '</div>');
             }
-            var changeClass = sector.change_percent >= 0 ? 'text-green-600' : 'text-red-600';
+            var changeClass = sector.change_percent >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
             var changeSign = sector.change_percent >= 0 ? '+' : '';
             return $('<div class="sector-option">' +
                 '<span class="font-medium">' + sector.name + '</span>' +
@@ -582,7 +573,6 @@ $(document).ready(function() {
         }
     });
 
-    // 表单提交前处理多选数据
     $('form').on('submit', function(e) {
         var watchlistValues = $('#watchlist').val();
         if (watchlistValues) {

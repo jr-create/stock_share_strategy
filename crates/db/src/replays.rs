@@ -18,6 +18,7 @@ struct ReplayRow {
     is_public: bool,
     expiry_date: Option<chrono::NaiveDate>,
     is_prediction: bool,
+    is_pinned: bool,
     created_at: chrono::DateTime<chrono::Utc>,
     updated_at: chrono::DateTime<chrono::Utc>,
     author_username: String,
@@ -43,6 +44,7 @@ impl From<ReplayRow> for (Replay, String, String, i64, i64) {
             is_public: row.is_public,
             expiry_date: row.expiry_date,
             is_prediction: row.is_prediction,
+            is_pinned: row.is_pinned,
             created_at: row.created_at,
             updated_at: row.updated_at,
         };
@@ -184,7 +186,7 @@ pub async fn list(pool: &PgPool, filter: &ReplayFilter) -> Result<PaginatedResul
           AND ($3::date IS NULL OR r.trade_date >= $3)
           AND ($4::date IS NULL OR r.trade_date <= $4)
           AND ($5::boolean IS NULL OR r.is_public = $5)
-        ORDER BY r.created_at DESC
+        ORDER BY r.is_pinned DESC, r.created_at DESC
         LIMIT $6 OFFSET $7
         "#
     )
@@ -355,7 +357,7 @@ pub async fn search(
               OR r.review ILIKE $2
           )
           AND ($3::boolean IS NULL OR r.is_public = $3)
-        ORDER BY r.created_at DESC
+        ORDER BY r.is_pinned DESC, r.created_at DESC
         LIMIT $4 OFFSET $5
         "#
     )
@@ -387,4 +389,114 @@ pub async fn search(
         items: replays,
         pagination,
     })
+}
+
+pub async fn search_with_filter(
+    pool: &PgPool,
+    query: &str,
+    search_field: &str,
+    sort_field: &str,
+    sort_order: &str,
+    user_id: Option<i64>,
+    per_page: i32,
+    offset: i32,
+) -> Result<PaginatedResult<ReplayWithAuthor>> {
+    let search_pattern = format!("%{}%", query);
+    let is_public_filter = if user_id.is_some() { None } else { Some(true) };
+    
+    // 构建搜索条件
+    let search_condition = match search_field {
+        "title" => "r.title ILIKE $2",
+        "market_view" => "r.market_view ILIKE $2",
+        "sector_focus" => "r.sector_focus ILIKE $2",
+        "watchlist" => "r.watchlist ILIKE $2",
+        "review" => "r.review ILIKE $2",
+        "plan" => "r.plan ILIKE $2",
+        "execution" => "r.execution ILIKE $2",
+        _ => "r.title ILIKE $2 OR r.market_view ILIKE $2 OR r.sector_focus ILIKE $2 OR r.watchlist ILIKE $2 OR r.review ILIKE $2",
+    };
+    
+    // 构建排序条件
+    let order_clause = match sort_field {
+        "created_at" => "r.created_at",
+        "trade_date" => "r.trade_date",
+        "expiry_date" => "r.expiry_date",
+        "like_count" => "like_count",
+        "comment_count" => "comment_count",
+        _ => "r.created_at",
+    };
+    let order_direction = if sort_order == "asc" { "ASC" } else { "DESC" };
+    // 置顶记录始终排在最前面
+    let order_by = format!("r.is_pinned DESC, {} {}", order_clause, order_direction);
+    
+    let total: i64 = sqlx::query_scalar(&format!(
+        r#"
+        SELECT COUNT(*) FROM replays r
+        WHERE ($1::bigint IS NULL OR r.user_id = $1)
+          AND ({})
+          AND ($3::boolean IS NULL OR r.is_public = $3)
+        "#, search_condition
+    ))
+    .bind(user_id)
+    .bind(&search_pattern)
+    .bind(is_public_filter)
+    .fetch_one(pool)
+    .await?;
+    
+    let results = sqlx::query_as::<_, ReplayRow>(&format!(
+        r#"
+        SELECT r.*, u.username as author_username, u.avatar_url as author_avatar,
+            (SELECT COUNT(*) FROM likes WHERE replay_id = r.id) as like_count,
+            (SELECT COUNT(*) FROM comments WHERE replay_id = r.id) as comment_count
+        FROM replays r
+        JOIN users u ON r.user_id = u.id
+        WHERE ($1::bigint IS NULL OR r.user_id = $1)
+          AND ({})
+          AND ($3::boolean IS NULL OR r.is_public = $3)
+        ORDER BY {}
+        LIMIT $4 OFFSET $5
+        "#, search_condition, order_by
+    ))
+    .bind(user_id)
+    .bind(&search_pattern)
+    .bind(is_public_filter)
+    .bind(per_page)
+    .bind(offset)
+    .fetch_all(pool)
+    .await?;
+
+    let mut replays = Vec::new();
+    for row in results {
+        let (replay, author_username, author_avatar, like_count, comment_count) = row.into();
+        let tags = find_tags(pool, replay.id).await?;
+        replays.push(ReplayWithAuthor {
+            replay,
+            author_username,
+            author_avatar,
+            like_count,
+            comment_count,
+            tags,
+        });
+    }
+
+    let page = (offset / per_page) + 1;
+    let pagination = PaginationMeta::new(total, page, per_page);
+    
+    Ok(PaginatedResult {
+        items: replays,
+        pagination,
+    })
+}
+
+/// 设置复盘记录的置顶状态
+pub async fn set_pinned(pool: &PgPool, id: i64, pinned: bool) -> Result<bool> {
+    let result = sqlx::query(
+        "UPDATE replays SET is_pinned = $1 WHERE id = $2"
+    )
+    .bind(pinned)
+    .bind(id)
+    .execute(pool)
+    .await?;
+
+    Ok(result.rows_affected() > 0)
 }

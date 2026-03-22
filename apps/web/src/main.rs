@@ -1,3 +1,4 @@
+mod captcha;
 mod config;
 mod error;
 mod middleware;

@@ -11,6 +11,7 @@ use tower_cookies::{Cookie, Cookies};
 use crate::state::AppState;
 use crate::error::AppError;
 use crate::middleware::csrf;
+use crate::captcha;
 
 const SESSION_COOKIE_NAME: &str = "session";
 
@@ -21,6 +22,7 @@ struct LoginTemplate {
     logged_in: bool,
     username: String,
     csrf_token: String,
+    captcha_svg: String,
 }
 
 #[derive(Template)]
@@ -30,12 +32,14 @@ struct RegisterTemplate {
     logged_in: bool,
     username: String,
     csrf_token: String,
+    captcha_svg: String,
 }
 
 #[derive(Deserialize)]
 struct LoginForm {
     email: String,
     password: String,
+    captcha: String,
     csrf_token: String,
 }
 
@@ -45,6 +49,7 @@ struct RegisterForm {
     email: String,
     password: String,
     confirm_password: String,
+    captcha: String,
     csrf_token: String,
 }
 
@@ -67,7 +72,19 @@ async fn login_page(cookies: Cookies) -> impl IntoResponse {
         .unwrap_or((false, String::new()));
     
     let csrf_token = csrf::set_csrf_cookie(&cookies);
-    let template = LoginTemplate { error: String::new(), logged_in, username, csrf_token };
+    
+    // 生成验证码
+    let captcha_code = captcha::generate_code();
+    let captcha_svg = captcha::generate_svg(&captcha_code);
+    captcha::set_captcha_cookie(&cookies, &captcha_code);
+    
+    let template = LoginTemplate { 
+        error: String::new(), 
+        logged_in, 
+        username, 
+        csrf_token,
+        captcha_svg,
+    };
     Html(template.render().unwrap())
 }
 
@@ -77,8 +94,33 @@ async fn register_page(cookies: Cookies) -> impl IntoResponse {
         .unwrap_or((false, String::new()));
     
     let csrf_token = csrf::set_csrf_cookie(&cookies);
-    let template = RegisterTemplate { error: String::new(), logged_in, username, csrf_token };
+    
+    // 生成验证码
+    let captcha_code = captcha::generate_code();
+    let captcha_svg = captcha::generate_svg(&captcha_code);
+    captcha::set_captcha_cookie(&cookies, &captcha_code);
+    
+    let template = RegisterTemplate { 
+        error: String::new(), 
+        logged_in, 
+        username, 
+        csrf_token,
+        captcha_svg,
+    };
     Html(template.render().unwrap())
+}
+
+/// 生成新的验证码图片（用于刷新）
+async fn captcha_image(cookies: Cookies) -> impl IntoResponse {
+    let captcha_code = captcha::generate_code();
+    let captcha_svg = captcha::generate_svg(&captcha_code);
+    captcha::set_captcha_cookie(&cookies, &captcha_code);
+    
+    // 返回SVG图片
+    (
+        [(axum::http::header::CONTENT_TYPE, "image/svg+xml")],
+        captcha_svg
+    )
 }
 
 enum AuthResponse {
@@ -103,11 +145,33 @@ async fn login_handler(
     // CSRF 验证
     if !csrf::verify_csrf(&cookies, &form.csrf_token) {
         let csrf_token = csrf::set_csrf_cookie(&cookies);
+        let captcha_code = captcha::generate_code();
+        let captcha_svg = captcha::generate_svg(&captcha_code);
+        captcha::set_captcha_cookie(&cookies, &captcha_code);
+        
         let template = LoginTemplate {
             error: "安全验证失败，请重试".to_string(),
             logged_in: false,
             username: String::new(),
             csrf_token,
+            captcha_svg,
+        };
+        return Ok(AuthResponse::Html(Html(template.render().unwrap())));
+    }
+
+    // 验证码验证
+    if !captcha::verify_captcha(&cookies, &form.captcha) {
+        let csrf_token = csrf::set_csrf_cookie(&cookies);
+        let captcha_code = captcha::generate_code();
+        let captcha_svg = captcha::generate_svg(&captcha_code);
+        captcha::set_captcha_cookie(&cookies, &captcha_code);
+        
+        let template = LoginTemplate {
+            error: "验证码错误或已过期".to_string(),
+            logged_in: false,
+            username: String::new(),
+            csrf_token,
+            captcha_svg,
         };
         return Ok(AuthResponse::Html(Html(template.render().unwrap())));
     }
@@ -116,11 +180,16 @@ async fn login_handler(
         Ok(Some(user)) => user,
         Ok(None) => {
             let csrf_token = csrf::set_csrf_cookie(&cookies);
+            let captcha_code = captcha::generate_code();
+            let captcha_svg = captcha::generate_svg(&captcha_code);
+            captcha::set_captcha_cookie(&cookies, &captcha_code);
+            
             let template = LoginTemplate {
                 error: "邮箱或密码错误".to_string(),
                 logged_in: false,
                 username: String::new(),
                 csrf_token,
+                captcha_svg,
             };
             return Ok(AuthResponse::Html(Html(template.render().unwrap())));
         }
@@ -129,11 +198,16 @@ async fn login_handler(
 
     if !common::password::verify(&form.password, &user.password_hash) {
         let csrf_token = csrf::set_csrf_cookie(&cookies);
+        let captcha_code = captcha::generate_code();
+        let captcha_svg = captcha::generate_svg(&captcha_code);
+        captcha::set_captcha_cookie(&cookies, &captcha_code);
+        
         let template = LoginTemplate {
             error: "邮箱或密码错误".to_string(),
             logged_in: false,
             username: String::new(),
             csrf_token,
+            captcha_svg,
         };
         return Ok(AuthResponse::Html(Html(template.render().unwrap())));
     }
@@ -158,41 +232,98 @@ async fn register_handler(
     // CSRF 验证
     if !csrf::verify_csrf(&cookies, &form.csrf_token) {
         let csrf_token = csrf::set_csrf_cookie(&cookies);
+        let captcha_code = captcha::generate_code();
+        let captcha_svg = captcha::generate_svg(&captcha_code);
+        captcha::set_captcha_cookie(&cookies, &captcha_code);
+        
         let template = RegisterTemplate {
             error: "安全验证失败，请重试".to_string(),
             logged_in: false,
             username: String::new(),
             csrf_token,
+            captcha_svg,
+        };
+        return Ok(AuthResponse::Html(Html(template.render().unwrap())));
+    }
+
+    // 验证码验证
+    if !captcha::verify_captcha(&cookies, &form.captcha) {
+        let csrf_token = csrf::set_csrf_cookie(&cookies);
+        let captcha_code = captcha::generate_code();
+        let captcha_svg = captcha::generate_svg(&captcha_code);
+        captcha::set_captcha_cookie(&cookies, &captcha_code);
+        
+        let template = RegisterTemplate {
+            error: "验证码错误或已过期".to_string(),
+            logged_in: false,
+            username: String::new(),
+            csrf_token,
+            captcha_svg,
         };
         return Ok(AuthResponse::Html(Html(template.render().unwrap())));
     }
 
     if form.password != form.confirm_password {
         let csrf_token = csrf::set_csrf_cookie(&cookies);
+        let captcha_code = captcha::generate_code();
+        let captcha_svg = captcha::generate_svg(&captcha_code);
+        captcha::set_captcha_cookie(&cookies, &captcha_code);
+        
         let template = RegisterTemplate {
             error: "两次密码不一致".to_string(),
             logged_in: false,
             username: String::new(),
             csrf_token,
+            captcha_svg,
         };
         return Ok(AuthResponse::Html(Html(template.render().unwrap())));
     }
 
     if let Err(e) = domain::User::validate_username(&form.username) {
         let csrf_token = csrf::set_csrf_cookie(&cookies);
-        let template = RegisterTemplate { error: e, logged_in: false, username: String::new(), csrf_token };
+        let captcha_code = captcha::generate_code();
+        let captcha_svg = captcha::generate_svg(&captcha_code);
+        captcha::set_captcha_cookie(&cookies, &captcha_code);
+        
+        let template = RegisterTemplate { 
+            error: e, 
+            logged_in: false, 
+            username: String::new(), 
+            csrf_token,
+            captcha_svg,
+        };
         return Ok(AuthResponse::Html(Html(template.render().unwrap())));
     }
 
     if let Err(e) = domain::User::validate_email(&form.email) {
         let csrf_token = csrf::set_csrf_cookie(&cookies);
-        let template = RegisterTemplate { error: e, logged_in: false, username: String::new(), csrf_token };
+        let captcha_code = captcha::generate_code();
+        let captcha_svg = captcha::generate_svg(&captcha_code);
+        captcha::set_captcha_cookie(&cookies, &captcha_code);
+        
+        let template = RegisterTemplate { 
+            error: e, 
+            logged_in: false, 
+            username: String::new(), 
+            csrf_token,
+            captcha_svg,
+        };
         return Ok(AuthResponse::Html(Html(template.render().unwrap())));
     }
 
     if let Err(e) = domain::User::validate_password(&form.password) {
         let csrf_token = csrf::set_csrf_cookie(&cookies);
-        let template = RegisterTemplate { error: e, logged_in: false, username: String::new(), csrf_token };
+        let captcha_code = captcha::generate_code();
+        let captcha_svg = captcha::generate_svg(&captcha_code);
+        captcha::set_captcha_cookie(&cookies, &captcha_code);
+        
+        let template = RegisterTemplate { 
+            error: e, 
+            logged_in: false, 
+            username: String::new(), 
+            csrf_token,
+            captcha_svg,
+        };
         return Ok(AuthResponse::Html(Html(template.render().unwrap())));
     }
 
@@ -229,5 +360,6 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/login", get(login_page).post(login_handler))
         .route("/register", get(register_page).post(register_handler))
+        .route("/captcha", get(captcha_image))
         .route("/logout", get(logout_handler))
 }

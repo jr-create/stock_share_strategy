@@ -18,6 +18,7 @@ pub struct Replay {
     pub is_public: bool,
     pub expiry_date: Option<NaiveDate>,
     pub is_prediction: bool,
+    pub is_pinned: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -76,6 +77,8 @@ pub struct ReplayFilter {
     pub is_public: Option<bool>,
     pub page: Option<i32>,
     pub per_page: Option<i32>,
+    pub sort_field: Option<String>,
+    pub sort_order: Option<String>,
 }
 
 impl ReplayFilter {

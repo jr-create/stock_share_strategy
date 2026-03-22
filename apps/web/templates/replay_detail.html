@@ -2,24 +2,50 @@
 
 {% block title %}{{ replay.replay.title }} - Stock Replay{% endblock %}
 
+{% block head %}
+<style>
+.like-btn { cursor: pointer; transition: all 0.2s; }
+.like-btn:hover { transform: scale(1.1); }
+.like-btn.liked { color: #ef4444; }
+</style>
+<script>
+async function toggleLike() {
+    const btn = document.getElementById('likeBtn');
+    const response = await fetch('/replays/{{ replay.replay.id }}/like', { method: 'POST' });
+    if (!response.ok) {
+        if (response.status === 401) {
+            alert('请先登录');
+            window.location.href = '/login';
+        }
+        return;
+    }
+    const data = await response.json();
+    btn.classList.toggle('liked', data.liked);
+    document.getElementById('likeCount').textContent = data.like_count;
+}
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="px-4">
-    <article class="bg-white rounded-lg shadow">
+    <article class="bg-white dark:bg-gray-800 rounded-lg shadow transition-colors">
         <div class="p-6">
             <header class="mb-6">
                 <div class="flex justify-between items-start">
                     <div>
-                        <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ replay.replay.title }}</h1>
-                        <div class="flex items-center text-gray-500 text-sm space-x-4">
+                        <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">{{ replay.replay.title }}</h1>
+                        <div class="flex items-center text-gray-500 dark:text-gray-400 text-sm space-x-4">
                             <span>📅 {{ replay.replay.trade_date }}</span>
                             <span>👤 {{ replay.author_username }}</span>
-                            <span>👍 {{ replay.like_count }}</span>
+                            <span id="likeBtn" class="like-btn {% if is_liked %}liked{% endif %}" onclick="toggleLike()">
+                                👍 <span id="likeCount">{{ replay.like_count }}</span>
+                            </span>
                             <span>💬 {{ replay.comment_count }}</span>
                         </div>
                         {% if !replay.tags.is_empty() %}
                         <div class="flex flex-wrap gap-2 mt-3">
                             {% for tag in replay.tags %}
-                            <span class="text-xs bg-indigo-100 text-indigo-600 px-2 py-1 rounded">{{ tag }}</span>
+                            <span class="text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 px-2 py-1 rounded">{{ tag }}</span>
                             {% endfor %}
                         </div>
                         {% endif %}
@@ -29,29 +55,29 @@
                     <div class="flex space-x-2">
                         {% if current_user_id.unwrap() == replay.replay.user_id %}
                         <div class="relative">
-                            <button onclick="toggleSingleExportMenu()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 text-sm flex items-center">
+                            <button onclick="toggleSingleExportMenu()" class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 text-sm flex items-center transition">
                                 导出
                                 <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
                             </button>
-                            <div id="singleExportMenu" class="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg py-1 hidden z-10">
-                                <a href="/my/export/{{ replay.replay.id }}/json" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            <div id="singleExportMenu" class="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-700 rounded-md shadow-lg py-1 hidden z-10">
+                                <a href="/my/export/{{ replay.replay.id }}/json" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
                                     导出为 JSON
                                 </a>
-                                <a href="/my/export/{{ replay.replay.id }}/csv" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                <a href="/my/export/{{ replay.replay.id }}/csv" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
                                     导出为 CSV
                                 </a>
                             </div>
                         </div>
                         <a href="/dashboard/replays/{{ replay.replay.id }}/edit" 
-                           class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 text-sm">
+                           class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-sm transition">
                             编辑
                         </a>
                         {% endif %}
                         {% if is_admin || (current_user_id.unwrap() == replay.replay.user_id && replay.comment_count == 0) %}
                         <button onclick="confirmDelete({{ replay.replay.id }}, '{{ replay.replay.title }}')"
-                                class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 text-sm">
+                                class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-sm transition">
                             删除
                         </button>
                         {% endif %}
@@ -62,91 +88,91 @@
 
             {% if !replay.replay.market_sentiment.is_empty() %}
             <section class="mb-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-2">市场情绪</h2>
-                <p class="text-gray-700 bg-gray-50 p-3 rounded">{{ replay.replay.market_sentiment }}</p>
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">市场情绪</h2>
+                <p class="text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 p-3 rounded">{{ replay.replay.market_sentiment }}</p>
             </section>
             {% endif %}
 
             {% if !replay.replay.market_view.is_empty() %}
             <section class="mb-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-2">大盘观点</h2>
-                <div class="text-gray-700 bg-gray-50 p-3 rounded whitespace-pre-wrap">{{ replay.replay.market_view }}</div>
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">大盘观点</h2>
+                <div class="text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 p-3 rounded whitespace-pre-wrap">{{ replay.replay.market_view }}</div>
             </section>
             {% endif %}
 
             {% if !replay.replay.sector_focus.is_empty() %}
             <section class="mb-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-2">主线板块</h2>
-                <div class="text-gray-700 bg-gray-50 p-3 rounded whitespace-pre-wrap">{{ replay.replay.sector_focus }}</div>
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">主线板块</h2>
+                <div class="text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 p-3 rounded whitespace-pre-wrap">{{ replay.replay.sector_focus }}</div>
             </section>
             {% endif %}
 
             {% if !replay.replay.watchlist.is_empty() %}
             <section class="mb-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-2">关注个股</h2>
-                <div class="text-gray-700 bg-gray-50 p-3 rounded whitespace-pre-wrap">{{ replay.replay.watchlist }}</div>
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">关注个股</h2>
+                <div class="text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 p-3 rounded whitespace-pre-wrap">{{ replay.replay.watchlist }}</div>
             </section>
             {% endif %}
 
             {% if !replay.replay.plan.is_empty() %}
             <section class="mb-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-2">交易计划</h2>
-                <div class="text-gray-700 bg-blue-50 p-3 rounded whitespace-pre-wrap">{{ replay.replay.plan }}</div>
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">交易计划</h2>
+                <div class="text-gray-700 dark:text-gray-300 bg-blue-50 dark:bg-blue-900 p-3 rounded whitespace-pre-wrap">{{ replay.replay.plan }}</div>
             </section>
             {% endif %}
 
             {% if !replay.replay.execution.is_empty() %}
             <section class="mb-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-2">实际执行</h2>
-                <div class="text-gray-700 bg-green-50 p-3 rounded whitespace-pre-wrap">{{ replay.replay.execution }}</div>
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">实际执行</h2>
+                <div class="text-gray-700 dark:text-gray-300 bg-green-50 dark:bg-green-900 p-3 rounded whitespace-pre-wrap">{{ replay.replay.execution }}</div>
             </section>
             {% endif %}
 
             {% if !replay.replay.review.is_empty() %}
             <section class="mb-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-2">复盘总结</h2>
-                <div class="text-gray-700 bg-yellow-50 p-3 rounded whitespace-pre-wrap">{{ replay.replay.review }}</div>
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">复盘总结</h2>
+                <div class="text-gray-700 dark:text-gray-300 bg-yellow-50 dark:bg-yellow-900 p-3 rounded whitespace-pre-wrap">{{ replay.replay.review }}</div>
             </section>
             {% endif %}
         </div>
     </article>
 
-    <section id="comments" class="mt-8 bg-white rounded-lg shadow p-6">
-        <h2 class="text-lg font-semibold mb-4">评论 ({{ comments.len() }})</h2>
+    <section id="comments" class="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow p-6 transition-colors">
+        <h2 class="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">评论 ({{ comments.len() }})</h2>
         
         {% if logged_in %}
         <form method="POST" action="/replays/{{ replay.replay.id }}/comments" class="mb-6">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <div class="mb-3">
                 <textarea id="content" name="content" rows="3" required
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 transition-colors"
                     placeholder="写下你的评论..."></textarea>
             </div>
             <button type="submit"
-                class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition">
+                class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition">
                 发表评论
             </button>
         </form>
         {% else %}
-        <div class="mb-6 bg-gray-50 p-4 rounded text-center text-gray-600">
-            <a href="/login" class="text-indigo-600 hover:underline">登录</a> 后参与评论
+        <div class="mb-6 bg-gray-50 dark:bg-gray-700 p-4 rounded text-center text-gray-600 dark:text-gray-300">
+            <a href="/login" class="text-indigo-600 dark:text-indigo-400 hover:underline">登录</a> 后参与评论和点赞
         </div>
         {% endif %}
         
         {% if comments.is_empty() %}
-        <p class="text-gray-500 text-center py-4">暂无评论</p>
+        <p class="text-gray-500 dark:text-gray-400 text-center py-4">暂无评论</p>
         {% else %}
         <div class="space-y-4">
             {% for comment in comments %}
-            <div class="border-b pb-4">
+            <div class="border-b dark:border-gray-700 pb-4">
                 <div class="flex items-center mb-2">
-                    <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 font-medium">
+                    <div class="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300 font-medium">
                         {{ comment.author_username.chars().next().unwrap_or('U') }}
                     </div>
-                    <span class="ml-2 font-medium">{{ comment.author_username }}</span>
-                    <span class="ml-auto text-sm text-gray-400">{{ comment.comment.created_at.format("%Y-%m-%d %H:%M") }}</span>
+                    <span class="ml-2 font-medium text-gray-900 dark:text-gray-100">{{ comment.author_username }}</span>
+                    <span class="ml-auto text-sm text-gray-400 dark:text-gray-500">{{ comment.comment.created_at.format("%Y-%m-%d %H:%M") }}</span>
                 </div>
-                <p class="text-gray-700 ml-10">{{ comment.comment.content }}</p>
+                <p class="text-gray-700 dark:text-gray-300 ml-10">{{ comment.comment.content }}</p>
             </div>
             {% endfor %}
         </div>
