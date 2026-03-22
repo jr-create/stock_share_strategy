@@ -413,7 +413,7 @@ pub async fn search_with_filter(
         "review" => "r.review ILIKE $2",
         "plan" => "r.plan ILIKE $2",
         "execution" => "r.execution ILIKE $2",
-        _ => "r.title ILIKE $2 OR r.market_view ILIKE $2 OR r.sector_focus ILIKE $2 OR r.watchlist ILIKE $2 OR r.review ILIKE $2",
+        _ => "r.title ILIKE $2 OR r.market_view ILIKE $2 OR r.sector_focus ILIKE $2 OR r.watchlist ILIKE $2 OR r.plan ILIKE $2 OR r.execution ILIKE $2 OR r.review ILIKE $2",
     };
     
     // 构建排序条件

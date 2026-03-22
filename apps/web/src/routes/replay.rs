@@ -301,7 +301,7 @@ async fn toggle_like(
     let (user_id, _, _) = user_info;
 
     // 检查复盘是否存在
-    let replay = db::replays::find_by_id(&state.db, id).await
+    let _ = db::replays::find_by_id(&state.db, id).await
         .map_err(|e| AppError::Internal(e.to_string()))?
         .ok_or_else(|| AppError::NotFound(format!("复盘不存在: {}", id)))?;
 

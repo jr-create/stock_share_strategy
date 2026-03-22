@@ -10,6 +10,18 @@
 .pin-btn { cursor: pointer; transition: all 0.2s; }
 .pin-btn:hover { transform: scale(1.1); }
 .pinned-badge { color: #f59e0b; }
+.admin-menu { 
+    position: absolute; 
+    right: 0; 
+    top: 100%; 
+    margin-top: 4px; 
+    min-width: 160px;
+    z-index: 50;
+}
+.replay-card.selected {
+    ring: 2px;
+    ring-color: #6366f1;
+}
 </style>
 <script>
 async function toggleLike(replayId, btn) {
@@ -60,13 +72,116 @@ function updateSort(field) {
     url.searchParams.set('order', newOrder);
     window.location.href = url.toString();
 }
+
+// 管理员操作相关函数
+function toggleAdminMenu() {
+    const menu = document.getElementById('adminMenu');
+    menu.classList.toggle('hidden');
+}
+
+// 点击其他地方关闭菜单
+document.addEventListener('click', function(event) {
+    const menu = document.getElementById('adminMenu');
+    const button = event.target.closest('button');
+    if (menu && !menu.contains(event.target) && (!button || !button.onclick || !button.onclick.toString().includes('toggleAdminMenu'))) {
+        menu.classList.add('hidden');
+    }
+});
+
+function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.replay-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+    updateSelectCount();
+}
+
+function updateSelectCount() {
+    const checked = document.querySelectorAll('.replay-checkbox:checked').length;
+    const countSpan = document.getElementById('selectedCount');
+    if (countSpan) {
+        countSpan.textContent = checked;
+    }
+}
+
+async function batchDelete() {
+    const checkboxes = document.querySelectorAll('.replay-checkbox:checked');
+    if (checkboxes.length === 0) {
+        alert('请先选择要删除的复盘');
+        return;
+    }
+    
+    const ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    if (!confirm(`确定要删除选中的 ${ids.length} 条复盘记录吗？此操作不可恢复！`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/admin/replays/batch-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: ids })
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401) {
+                alert('请先登录');
+                window.location.href = '/login';
+                return;
+            } else if (response.status === 403) {
+                alert('需要管理员权限');
+                return;
+            }
+            throw new Error('删除失败');
+        }
+        
+        const data = await response.json();
+        alert(data.message);
+        window.location.reload();
+    } catch (error) {
+        alert('删除失败: ' + error.message);
+    }
+}
 </script>
 {% endblock %}
 
 {% block content %}
 <div class="px-4">
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">复盘广场</h1>
+        <div class="flex items-center space-x-4">
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">复盘广场</h1>
+            {% if is_admin %}
+            <div class="relative">
+                <button onclick="toggleAdminMenu()" 
+                        class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 transition flex items-center space-x-1">
+                    <span>管理员操作</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                <div id="adminMenu" class="hidden admin-menu bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1">
+                    <div class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                        批量导出
+                    </div>
+                    <a href="/admin/export/json" 
+                       class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                        导出全部 JSON
+                    </a>
+                    <a href="/admin/export/csv" 
+                       class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                        导出全部 CSV
+                    </a>
+                    <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                    <div class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                        批量操作 (<span id="selectedCount">0</span> 已选)
+                    </div>
+                    <button onclick="batchDelete()" 
+                            class="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
+                        批量删除选中
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
         {% if logged_in %}
         <a href="/dashboard/replays/new?public=1" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition">
             发布复盘
@@ -133,9 +248,6 @@ function updateSort(field) {
             <input type="hidden" name="sort" value="{{ sort_field }}">
             <input type="hidden" name="order" value="{{ sort_order }}">
             {% endif %}
-            {% if search_field != "all" %}
-            <input type="hidden" name="search_field" value="{{ search_field }}">
-            {% endif %}
         </form>
     </div>
 
@@ -154,10 +266,24 @@ function updateSort(field) {
         {% endif %}
     </div>
     {% else %}
+    {% if is_admin %}
+    <div class="mb-4 flex items-center space-x-2">
+        <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" 
+               class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
+        <label for="selectAll" class="text-sm text-gray-600 dark:text-gray-300 cursor-pointer">全选</label>
+    </div>
+    {% endif %}
     <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {% for replay in replays %}
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-md transition">
-            <div class="p-6">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-md transition relative">
+            {% if is_admin %}
+            <div class="absolute top-2 left-2 z-10">
+                <input type="checkbox" value="{{ replay.replay.id }}" 
+                       class="replay-checkbox w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                       onchange="updateSelectCount()">
+            </div>
+            {% endif %}
+            <div class="p-6{% if is_admin %} pl-10{% endif %}">
                 <div class="flex items-center mb-3">
                     <div class="w-8 h-8 bg-indigo-100 dark:bg-indigo-900 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-medium">
                         {{ replay.author_username.chars().next().unwrap_or('U') }}
