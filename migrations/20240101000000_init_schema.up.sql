@@ -1,5 +1,5 @@
 -- Users table
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
     username VARCHAR(32) UNIQUE NOT NULL,
     email VARCHAR(128) UNIQUE NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE users (
 );
 
 -- Replays table
-CREATE TABLE replays (
+CREATE TABLE IF NOT EXISTS replays (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title VARCHAR(200) NOT NULL,
@@ -28,14 +28,14 @@ CREATE TABLE replays (
 );
 
 -- Replay tags table
-CREATE TABLE replay_tags (
+CREATE TABLE IF NOT EXISTS replay_tags (
     replay_id BIGINT NOT NULL REFERENCES replays(id) ON DELETE CASCADE,
     tag VARCHAR(50) NOT NULL,
     PRIMARY KEY (replay_id, tag)
 );
 
 -- Comments table
-CREATE TABLE comments (
+CREATE TABLE IF NOT EXISTS comments (
     id BIGSERIAL PRIMARY KEY,
     replay_id BIGINT NOT NULL REFERENCES replays(id) ON DELETE CASCADE,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -44,7 +44,7 @@ CREATE TABLE comments (
 );
 
 -- Likes table
-CREATE TABLE likes (
+CREATE TABLE IF NOT EXISTS likes (
     replay_id BIGINT NOT NULL REFERENCES replays(id) ON DELETE CASCADE,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -52,7 +52,7 @@ CREATE TABLE likes (
 );
 
 -- Stocks table
-CREATE TABLE stocks (
+CREATE TABLE IF NOT EXISTS stocks (
     code VARCHAR(16) PRIMARY KEY,
     name VARCHAR(64) NOT NULL,
     market VARCHAR(16) NOT NULL DEFAULT '',
@@ -61,14 +61,14 @@ CREATE TABLE stocks (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_replays_user_id ON replays(user_id);
-CREATE INDEX idx_replays_trade_date ON replays(trade_date DESC);
-CREATE INDEX idx_replays_is_public ON replays(is_public);
-CREATE INDEX idx_replay_tags_tag ON replay_tags(tag);
-CREATE INDEX idx_comments_replay_id ON comments(replay_id);
-CREATE INDEX idx_likes_replay_id ON likes(replay_id);
-CREATE INDEX idx_stocks_name ON stocks(name);
-CREATE INDEX idx_stocks_sector ON stocks(sector);
+CREATE INDEX IF NOT EXISTS idx_replays_user_id ON replays(user_id);
+CREATE INDEX IF NOT EXISTS idx_replays_trade_date ON replays(trade_date DESC);
+CREATE INDEX IF NOT EXISTS idx_replays_is_public ON replays(is_public);
+CREATE INDEX IF NOT EXISTS idx_replay_tags_tag ON replay_tags(tag);
+CREATE INDEX IF NOT EXISTS idx_comments_replay_id ON comments(replay_id);
+CREATE INDEX IF NOT EXISTS idx_likes_replay_id ON likes(replay_id);
+CREATE INDEX IF NOT EXISTS idx_stocks_name ON stocks(name);
+CREATE INDEX IF NOT EXISTS idx_stocks_sector ON stocks(sector);
 
 -- Updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -80,13 +80,23 @@ END;
 $$ language 'plpgsql';
 
 -- Trigger for replays table
-CREATE TRIGGER update_replays_updated_at
-    BEFORE UPDATE ON replays
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_replays_updated_at') THEN
+        CREATE TRIGGER update_replays_updated_at
+            BEFORE UPDATE ON replays
+            FOR EACH ROW
+            EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END $$;
 
 -- Trigger for stocks table
-CREATE TRIGGER update_stocks_updated_at
-    BEFORE UPDATE ON stocks
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_stocks_updated_at') THEN
+        CREATE TRIGGER update_stocks_updated_at
+            BEFORE UPDATE ON stocks
+            FOR EACH ROW
+            EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END $$;

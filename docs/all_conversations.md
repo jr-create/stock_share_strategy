@@ -464,3 +464,29 @@ mingw32-make: \*\*\* \[Makefile:29: dev] Error 1
 
 使用多个agent，能够有效利用多核 CPU
 
+***
+
+Error: migration 20240101000000 was previously applied but has been modified
+
+error: process didn't exit successfully: `D:\person\RustTarget\debug\stock-replay-web.exe` (exit code: 1)
+
+mingw32-make: \*\*\* \[Makefile:29: dev] Error 1
+
+<br />
+
+原因 : 迁移文件被修改后，数据库中存储的校验和与本地文件不匹配，导致 sqlx 报错。
+
+解决方法 : 更新数据库中 \_sqlx\_migrations 表的校验和，使其与本地迁移文件匹配。
+
+```
+UPDATE _sqlx_migrations SET 
+checksum = '<新的校验和>' WHERE 
+version = <版本号>;
+```
+
+注意 : 在生产环境（Zeabur）部署时，如果迁移文件被修改，可能会遇到同样的问题。解决方案：
+
+1. 最佳实践 : 不要修改已应用的迁移文件，而是创建新的迁移文件
+2. 如果必须修改 : 在部署前手动更新数据库中的校验和
+3. 重新部署 : 可以删除 \_sqlx\_migrations 表中的记录重新运行迁移（仅限开发环境）
+

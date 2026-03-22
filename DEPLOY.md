@@ -70,12 +70,13 @@ git push -u origin main
 1. 进入 Zeabur 控制台
 2. 点击 Web 服务的 **Terminal**
 3. 执行迁移命令（需要先安装 sqlx-cli）：
+   1. 方案一：清空迁移记录（推荐）
+```sql
+-- 删除迁移记录表
+DROP TABLE IF EXISTS _sqlx_migrations;
 
-```bash
-# 或者使用 psql 直接执行迁移SQL
+-- 然后重新部署，sqlx 会重新创建迁移记录并执行所有迁移
 ```
-
-或者手动执行 `migrations/20240101000000_init_schema.up.sql` 中的 SQL。
 
 ***
 
