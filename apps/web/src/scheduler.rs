@@ -97,61 +97,102 @@ impl SyncScheduler {
         
         let client = reqwest::Client::builder()
             .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-            .timeout(std::time::Duration::from_secs(60))
+            .timeout(std::time::Duration::from_secs(120))
             .build()
             .map_err(|e| anyhow::anyhow!("创建HTTP客户端失败: {}", e))?;
         
-        let params = [
-            ("pn", "1"),
-            ("pz", "6000"),
-            ("po", "1"),
-            ("np", "1"),
-            ("fltt", "2"),
-            ("invt", "2"),
-            ("fid", "f3"),
-            ("fs", "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23"),
-            ("fields", "f12,f14"),
+        let mut all_stocks = Vec::new();
+        
+        let market_configs = [
+            ("m:0+t:6,m:0+t:80", "深证A股"),
+            ("m:1+t:2,m:1+t:23", "上证A股"),
+            ("m:0+t:81", "创业板"),
+            ("m:0+t:85", "科创板"),
+            ("m:0+t:83", "北交所"),
         ];
         
-        info!("正在请求东方财富: {}", url);
-        
-        let response = client
-            .get(url)
-            .query(&params)
-            .header("Accept", "application/json, text/plain, */*")
-            .header("Referer", "https://quote.eastmoney.com/")
-            .send()
-            .await
-            .map_err(|e| anyhow::anyhow!("东方财富请求失败: {}", e))?;
-        
-        let status = response.status();
-        info!("东方财富HTTP状态码: {}", status);
-        
-        if !status.is_success() {
-            return Err(anyhow::anyhow!("HTTP状态错误: {}", status));
+        for (fs, market_name) in market_configs {
+            info!("正在获取 {} 股票列表...", market_name);
+            
+            let page_size = 500;
+            let mut page = 1;
+            
+            loop {
+                let params = [
+                    ("pn", page.to_string()),
+                    ("pz", page_size.to_string()),
+                    ("po", "1".to_string()),
+                    ("np", "1".to_string()),
+                    ("fltt", "2".to_string()),
+                    ("invt", "2".to_string()),
+                    ("fid", "f3".to_string()),
+                    ("fs", fs.to_string()),
+                    ("fields", "f12,f14".to_string()),
+                ];
+                
+                let response = client
+                    .get(url)
+                    .query(&params)
+                    .header("Accept", "application/json, text/plain, */*")
+                    .header("Referer", "https://quote.eastmoney.com/")
+                    .send()
+                    .await
+                    .map_err(|e| anyhow::anyhow!("东方财富请求失败: {}", e))?;
+                
+                let status = response.status();
+                if !status.is_success() {
+                    return Err(anyhow::anyhow!("HTTP状态错误: {}", status));
+                }
+                
+                let json: serde_json::Value = response.json().await
+                    .map_err(|e| anyhow::anyhow!("解析JSON失败: {}", e))?;
+                
+                // 打印原始响应中的关键字段
+                let data_exists = json["data"].is_object();
+                let total = json["data"]["total"].as_i64().unwrap_or(0);
+                let diff_exists = json["data"]["diff"].is_array();
+                let diff_count = json["data"]["diff"].as_array().map(|a| a.len()).unwrap_or(0);
+                
+                info!("{} 第 {} 页API响应: data存在={}, total={}, diff存在={}, diff数量={}", 
+                    market_name, page, data_exists, total, diff_exists, diff_count);
+                
+                let stocks = json["data"]["diff"].as_array();
+                
+                if let Some(stocks) = stocks {
+                    let count = stocks.len();
+                    info!("{} 第 {} 页获取 {} 条股票数据", market_name, page, count);
+                    
+                    for s in stocks {
+                        if let (Some(code), Some(name)) = (s["f12"].as_str(), s["f14"].as_str()) {
+                            if !code.is_empty() && !name.is_empty() {
+                                all_stocks.push((code.to_string(), name.to_string()));
+                            }
+                        }
+                    }
+                    
+                    info!("{} 第 {} 页获取 {} 条，当前总计 {} 条", market_name, page, count, all_stocks.len());
+                    
+                    // 继续获取直到所有数据
+                    if count == 0 || (page * page_size) >= total as usize {
+                        info!("{} 获取完成: count={}, page*page_size={}, total={}", 
+                            market_name, count, page * page_size, total);
+                        break;
+                    }
+                    page += 1;
+                } else {
+                    info!("{} 第 {} 页没有diff数据，退出", market_name, page);
+                    break;
+                }
+                
+                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            }
         }
         
-        let json: serde_json::Value = response.json().await
-            .map_err(|e| anyhow::anyhow!("解析JSON失败: {}", e))?;
+        all_stocks.sort_by(|a, b| a.0.cmp(&b.0));
+        all_stocks.dedup_by(|a, b| a.0 == b.0);
         
-        let stocks = json["data"]["diff"]
-            .as_array()
-            .ok_or_else(|| anyhow::anyhow!("无法解析股票数据"))?;
-        
-        let result: Vec<(String, String)> = stocks
-            .iter()
-            .filter_map(|s| {
-                let code = s["f12"].as_str()?.to_string();
-                let name = s["f14"].as_str()?.to_string();
-                if !code.is_empty() && !name.is_empty() {
-                    Some((code, name))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        
-        Ok(result)
+        info!("东方财富共获取 {} 条去重后的股票数据", all_stocks.len());
+        Ok(all_stocks)
     }
     
     async fn fetch_from_sina() -> Result<Vec<(String, String)>> {
@@ -164,7 +205,7 @@ impl SyncScheduler {
         
         let mut all_stocks = Vec::new();
         
-        for page in 1..=50 {
+        for page in 1..=60 {
             let page_str = page.to_string();
             let num_str = "100".to_string();
             let params: [(&str, &str); 7] = [
